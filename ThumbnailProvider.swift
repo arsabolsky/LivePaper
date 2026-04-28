@@ -21,7 +21,7 @@ final class ThumbnailProvider {
         }
 
         switch MediaType.detect(url) {
-        case .image:
+        case .image, .gif:
             requestImageThumbnail(for: url, size: size, cacheKey: key, completion: completion)
         case .video:
             requestVideoThumbnail(for: url, size: size, cacheKey: key, completion: completion)

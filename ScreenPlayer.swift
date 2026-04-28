@@ -10,10 +10,12 @@ class ScreenPlayer {
     private var endObserver: Any?
     private let screen: NSScreen
     private var fileURL: URL
+    private var fitMode: WallpaperFitMode
 
-    init(fileURL: URL, screen: NSScreen) {
+    init(fileURL: URL, screen: NSScreen, fitMode: WallpaperFitMode) {
         self.screen = screen
         self.fileURL = fileURL
+        self.fitMode = fitMode
         setupWindow()
         setupContent()
     }
@@ -24,6 +26,12 @@ class ScreenPlayer {
         self.fileURL = url
         clearContent()
         setupContent()
+    }
+
+    func updateFitMode(_ fitMode: WallpaperFitMode) {
+        self.fitMode = fitMode
+        playerLayer?.videoGravity = fitMode.avLayerVideoGravity
+        layoutImageView()
     }
 
     /// Resizes the player window and all its layers to match the current screen geometry.
@@ -42,6 +50,7 @@ class ScreenPlayer {
             layer.frame = newBounds
         }
         playerLayer?.frame = newBounds
+        layoutImageView()
     }
 
     func currentPlaybackTime() -> CMTime? {
@@ -59,9 +68,14 @@ class ScreenPlayer {
         playerLayer?.removeFromSuperlayer()
         playerLayer = nil
         avPlayer = nil
+        imageView?.removeFromSuperview()
+        imageView = nil
         
         if let contentView = window?.contentView {
             contentView.layer = nil
+            contentView.wantsLayer = true
+            contentView.layer?.backgroundColor = NSColor.black.cgColor
+            contentView.layer?.masksToBounds = true
         }
     }
 
@@ -93,7 +107,8 @@ class ScreenPlayer {
     private func setupContent() {
         switch MediaType.detect(fileURL) {
         case .video: setupVideoPlayer()
-        case .image: setupImageView()
+        case .gif: setupImageView(animated: true)
+        case .image: setupImageView(animated: false)
         case .unsupported: break
         }
     }
@@ -107,7 +122,7 @@ class ScreenPlayer {
         avPlayer?.preventsDisplaySleepDuringVideoPlayback = false
 
         playerLayer = AVPlayerLayer(player: avPlayer)
-        playerLayer?.videoGravity = .resizeAspectFill
+        playerLayer?.videoGravity = fitMode.avLayerVideoGravity
         playerLayer?.backgroundColor = NSColor.black.cgColor
 
         if let contentView = window?.contentView {
@@ -128,18 +143,55 @@ class ScreenPlayer {
         avPlayer?.play()
     }
 
-    private func setupImageView() {
+    private func setupImageView(animated: Bool) {
         guard let image = NSImage(contentsOf: fileURL),
               let contentView = window?.contentView else { return }
 
-        let imageLayer = CALayer()
-        imageLayer.contents = image
-        imageLayer.frame = contentView.bounds
-        imageLayer.contentsGravity = .resizeAspectFill
-        imageLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
-        contentView.layer = imageLayer
+        let imageView = NSImageView(frame: contentView.bounds)
+        imageView.image = image
+        imageView.animates = animated
+        imageView.imageAlignment = .alignCenter
+        imageView.imageScaling = .scaleAxesIndependently
+        contentView.addSubview(imageView)
+        self.imageView = imageView
+        layoutImageView()
 
         window?.orderBack(nil)
+    }
+
+    private func layoutImageView() {
+        guard let imageView,
+              let contentView = window?.contentView,
+              let image = imageView.image else { return }
+
+        let bounds = contentView.bounds
+        let imageSize = image.size
+        guard bounds.width > 0, bounds.height > 0, imageSize.width > 0, imageSize.height > 0 else {
+            imageView.frame = bounds
+            return
+        }
+
+        switch fitMode {
+        case .stretch:
+            imageView.frame = bounds
+        case .fit:
+            imageView.frame = aspectRect(for: imageSize, in: bounds, fill: false)
+        case .fill:
+            imageView.frame = aspectRect(for: imageSize, in: bounds, fill: true)
+        }
+    }
+
+    private func aspectRect(for imageSize: NSSize, in bounds: NSRect, fill: Bool) -> NSRect {
+        let widthRatio = bounds.width / imageSize.width
+        let heightRatio = bounds.height / imageSize.height
+        let scale = fill ? max(widthRatio, heightRatio) : min(widthRatio, heightRatio)
+        let fittedSize = NSSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        return NSRect(
+            x: bounds.midX - (fittedSize.width / 2),
+            y: bounds.midY - (fittedSize.height / 2),
+            width: fittedSize.width,
+            height: fittedSize.height
+        )
     }
 
     func resumePlayback() {
@@ -162,6 +214,8 @@ class ScreenPlayer {
         playerLayer?.removeFromSuperlayer()
         playerLayer = nil
         avPlayer = nil
+        imageView?.removeFromSuperview()
+        imageView = nil
         setupVideoPlayer()
     }
 
@@ -179,4 +233,17 @@ class ScreenPlayer {
     }
 
     deinit { cleanup() }
+}
+
+private extension WallpaperFitMode {
+    var avLayerVideoGravity: AVLayerVideoGravity {
+        switch self {
+        case .fill:
+            return .resizeAspectFill
+        case .fit:
+            return .resizeAspect
+        case .stretch:
+            return .resize
+        }
+    }
 }

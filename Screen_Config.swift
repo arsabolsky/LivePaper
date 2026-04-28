@@ -1,5 +1,11 @@
 import Foundation
 
+enum WallpaperFitMode: String, Codable, CaseIterable {
+    case fill
+    case fit
+    case stretch
+}
+
 // MARK: - Screen_Config
 
 struct Screen_Config: Codable, Equatable {
@@ -11,6 +17,8 @@ struct Screen_Config: Codable, Equatable {
     var includeSubfolders: Bool
     var isFolderMode: Bool
     var isSynced: Bool
+    var wallpaperFit: WallpaperFitMode
+    var isFolderBrowserVisible: Bool
 
     static let `default` = Screen_Config(
         folderPath: nil,
@@ -20,7 +28,9 @@ struct Screen_Config: Codable, Equatable {
         isRotationEnabled: true,
         includeSubfolders: false,
         isFolderMode: false,
-        isSynced: true
+        isSynced: true,
+        wallpaperFit: .fill,
+        isFolderBrowserVisible: false
     )
 
     enum CodingKeys: String, CodingKey {
@@ -32,6 +42,8 @@ struct Screen_Config: Codable, Equatable {
         case includeSubfolders       = "include_subfolders"
         case isFolderMode            = "is_folder_mode"
         case isSynced                = "is_synced"
+        case wallpaperFit            = "wallpaper_fit"
+        case isFolderBrowserVisible  = "is_folder_browser_visible"
     }
 
     init(
@@ -42,7 +54,9 @@ struct Screen_Config: Codable, Equatable {
         isRotationEnabled: Bool,
         includeSubfolders: Bool,
         isFolderMode: Bool,
-        isSynced: Bool
+        isSynced: Bool,
+        wallpaperFit: WallpaperFitMode = .fill,
+        isFolderBrowserVisible: Bool = false
     ) {
         self.folderPath = folderPath
         self.wallpaperPath = wallpaperPath
@@ -52,6 +66,8 @@ struct Screen_Config: Codable, Equatable {
         self.includeSubfolders = includeSubfolders
         self.isFolderMode = isFolderMode
         self.isSynced = isSynced
+        self.wallpaperFit = wallpaperFit
+        self.isFolderBrowserVisible = isFolderBrowserVisible
     }
 
     init(from decoder: Decoder) throws {
@@ -65,6 +81,13 @@ struct Screen_Config: Codable, Equatable {
         includeSubfolders       = try container.decodeIfPresent(Bool.self,   forKey: .includeSubfolders)       ?? d.includeSubfolders
         isFolderMode            = try container.decodeIfPresent(Bool.self,   forKey: .isFolderMode)            ?? d.isFolderMode
         isSynced                = try container.decodeIfPresent(Bool.self,   forKey: .isSynced)                ?? d.isSynced
+        if let rawWallpaperFit = try container.decodeIfPresent(String.self, forKey: .wallpaperFit),
+           let wallpaperFitMode = WallpaperFitMode(rawValue: rawWallpaperFit) {
+            wallpaperFit = wallpaperFitMode
+        } else {
+            wallpaperFit = d.wallpaperFit
+        }
+        isFolderBrowserVisible = try container.decodeIfPresent(Bool.self, forKey: .isFolderBrowserVisible) ?? d.isFolderBrowserVisible
     }
 }
 

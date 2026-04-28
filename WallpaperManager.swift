@@ -29,9 +29,6 @@ class WallpaperManager {
     private let lockScreenCaptureQueue = DispatchQueue(label: "com.sakura.wallpaper.lockscreen", qos: .userInitiated)
     private var transientDesktopSnapshotsByScreen: [String: URL] = [:]
     private var screensChangedWorkItem: DispatchWorkItem?
-    /// Original system desktop URLs captured before SakuraWallpaper first overwrites them.
-    /// Used to restore the wallpaper when the user clears SakuraWallpaper.
-    private var originalDesktopURLsByScreen: [String: URL] = [:]
 
     static let didRotateNotification = Notification.Name("WallpaperManagerDidRotate")
     static let playbackStateDidChangeNotification = Notification.Name("WallpaperManagerPlaybackStateDidChange")
@@ -363,7 +360,7 @@ class WallpaperManager {
 
     private func applySystemDesktopWallpaper(for screen: NSScreen, screenID: String, mediaURL: URL, playbackTime: CMTime?) {
         switch MediaType.detect(mediaURL) {
-        case .image:
+        case .image, .gif:
             clearTransientDesktopSnapshot(for: screenID)
             applyDesktopImage(at: mediaURL, for: screen, screenID: screenID)
         case .video:
@@ -401,12 +398,8 @@ class WallpaperManager {
 
     private func applyDesktopImage(at imageURL: URL, for screen: NSScreen, screenID: String) {
         do {
-            // Capture the original system desktop URL the first time we overwrite it,
-            // so we can restore it when the user clears SakuraWallpaper.
-            if originalDesktopURLsByScreen[screenID] == nil {
-                originalDesktopURLsByScreen[screenID] = NSWorkspace.shared.desktopImageURL(for: screen)
-            }
-            let options = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
+            captureOriginalDesktopIfNeeded(for: screen, screenID: screenID)
+            let options = desktopOptions(for: screen, screenID: screenID)
             try NSWorkspace.shared.setDesktopImageURL(imageURL, for: screen, options: options)
         } catch {
             print("Failed to set system desktop image for \(screenID): \(error)")
@@ -875,6 +868,13 @@ class WallpaperManager {
         return currentFiles[id]?.path
     }
 
+    func refreshWallpaperFit(for screen: NSScreen) {
+        let id = SettingsManager.screenIdentifier(screen)
+        guard let url = currentFiles[id] ?? urlForScreen(screen) else { return }
+        createOrUpdatePlayer(for: screen, url: url)
+        syncCurrentWallpaperToSystemDesktop(for: screen)
+    }
+
     func stopAll() {
         isPaused = false
         isPausedInternally = false
@@ -889,12 +889,10 @@ class WallpaperManager {
         playlistsByScreen.removeAll()
         playlistIndexesByScreen.removeAll()
         clearAllTransientDesktopSnapshots()
-        // Restore original system desktop wallpapers for all screens
         for screen in NSScreen.screens {
             let id = SettingsManager.screenIdentifier(screen)
-            restoreOriginalDesktop(for: screen, screenID: id)
+            _ = restoreOriginalDesktop(for: screen, screenID: id)
         }
-        originalDesktopURLsByScreen.removeAll()
     }
 
     func stopWallpaper(for screen: NSScreen) {
@@ -908,20 +906,21 @@ class WallpaperManager {
         stopIndependentTimer(forScreenID: id)
         clearTransientDesktopSnapshot(for: id)
         SettingsManager.shared.setScreenConfig(Screen_Config.default, for: id)
-        // Restore original system desktop wallpaper for this screen
-        restoreOriginalDesktop(for: screen, screenID: id)
-        originalDesktopURLsByScreen.removeValue(forKey: id)
+        _ = restoreOriginalDesktop(for: screen, screenID: id)
         if players.isEmpty { stopKeepVisibleTimer() }
     }
 
-    private func restoreOriginalDesktop(for screen: NSScreen, screenID: String) {
-        guard let originalURL = originalDesktopURLsByScreen[screenID],
-              FileManager.default.fileExists(atPath: originalURL.path) else { return }
+    @discardableResult
+    private func restoreOriginalDesktop(for screen: NSScreen, screenID: String) -> Bool {
+        guard let record = SettingsManager.shared.originalDesktopRecord(for: screenID),
+              FileManager.default.fileExists(atPath: record.imagePath) else { return false }
         do {
-            let options = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
-            try NSWorkspace.shared.setDesktopImageURL(originalURL, for: screen, options: options)
+            try NSWorkspace.shared.setDesktopImageURL(record.imageURL, for: screen, options: record.desktopImageOptions)
+            SettingsManager.shared.removeOriginalDesktopRecord(for: screenID)
+            return true
         } catch {
             print("Failed to restore original desktop for \(screenID): \(error)")
+            return false
         }
     }
 
@@ -1010,15 +1009,17 @@ class WallpaperManager {
 
     private func createOrUpdatePlayer(for screen: NSScreen, url: URL) {
         let id = SettingsManager.screenIdentifier(screen)
+        let fitMode = SettingsManager.shared.screenConfig(for: id).wallpaperFit
         if let player = players[id] {
             // Resize the window and layers if the screen geometry has changed
             // (e.g. monitor reattached at a different resolution — Bug 1 fix).
             if player.window?.frame != screen.frame {
                 player.resize(to: screen)
             }
+            player.updateFitMode(fitMode)
             player.updateMedia(url: url)
         } else {
-            let player = ScreenPlayer(fileURL: url, screen: screen)
+            let player = ScreenPlayer(fileURL: url, screen: screen, fitMode: fitMode)
             players[id] = player
         }
     }
@@ -1110,5 +1111,48 @@ class WallpaperManager {
             }
             // else: leave stopped
         }
+    }
+
+    private func captureOriginalDesktopIfNeeded(for screen: NSScreen, screenID: String) {
+        guard SettingsManager.shared.originalDesktopRecord(for: screenID) == nil,
+              let currentURL = NSWorkspace.shared.desktopImageURL(for: screen),
+              !isTransientSnapshotURL(currentURL) else { return }
+
+        let options = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
+        SettingsManager.shared.setOriginalDesktopRecord(
+            OriginalDesktopRecord(imageURL: currentURL, desktopOptions: options),
+            for: screenID
+        )
+    }
+
+    private func desktopOptions(for screen: NSScreen, screenID: String) -> [NSWorkspace.DesktopImageOptionKey: Any] {
+        let currentOptions = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
+        return currentOptions.merging(fitDesktopOptions(for: SettingsManager.shared.screenConfig(for: screenID).wallpaperFit)) { _, new in
+            new
+        }
+    }
+
+    private func fitDesktopOptions(for fitMode: WallpaperFitMode) -> [NSWorkspace.DesktopImageOptionKey: Any] {
+        switch fitMode {
+        case .fill:
+            return [
+                .imageScaling: NSNumber(value: NSImageScaling.scaleProportionallyUpOrDown.rawValue),
+                .allowClipping: NSNumber(value: true)
+            ]
+        case .fit:
+            return [
+                .imageScaling: NSNumber(value: NSImageScaling.scaleProportionallyUpOrDown.rawValue),
+                .allowClipping: NSNumber(value: false)
+            ]
+        case .stretch:
+            return [
+                .imageScaling: NSNumber(value: NSImageScaling.scaleAxesIndependently.rawValue),
+                .allowClipping: NSNumber(value: false)
+            ]
+        }
+    }
+
+    private func isTransientSnapshotURL(_ url: URL) -> Bool {
+        url.path.contains("/SakuraWallpaper/lockscreen-current-")
     }
 }

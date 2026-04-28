@@ -19,6 +19,14 @@ class AboutWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
         window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor.windowBackgroundColor
+        switch SettingsManager.shared.appearanceMode {
+        case .system:
+            window.appearance = nil
+        case .light:
+            window.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            window.appearance = NSAppearance(named: .darkAqua)
+        }
         setupUI()
     }
     

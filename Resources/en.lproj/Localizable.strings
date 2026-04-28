@@ -117,3 +117,14 @@
 "ui.newScreenPolicy.inheritSyncGroup" = "Inherit Sync Group";
 "ui.newScreenPolicy.blank" = "Start Blank";
 "ui.newScreenPolicy.tooltip" = "Controls what happens when a new monitor is connected.";
+"ui.fitMode" = "Fit";
+"ui.fit.fill" = "Fill";
+"ui.fit.fit" = "Fit";
+"ui.fit.stretch" = "Stretch";
+"ui.appearance" = "Appearance";
+"ui.appearance.system" = "System";
+"ui.appearance.light" = "Light";
+"ui.appearance.dark" = "Dark";
+"ui.gif" = "GIF";
+"ui.browseFolder" = "Browse Folder";
+"ui.hideFolderBrowser" = "Hide Browser";

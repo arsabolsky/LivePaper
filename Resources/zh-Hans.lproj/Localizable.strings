@@ -117,3 +117,14 @@
 "ui.newScreenPolicy.inheritSyncGroup" = "继承同步组";
 "ui.newScreenPolicy.blank" = "空白启动";
 "ui.newScreenPolicy.tooltip" = "控制接入新显示器时的行为。";
+"ui.fitMode" = "铺放";
+"ui.fit.fill" = "铺满";
+"ui.fit.fit" = "完整显示";
+"ui.fit.stretch" = "拉伸";
+"ui.appearance" = "外观";
+"ui.appearance.system" = "跟随系统";
+"ui.appearance.light" = "浅色";
+"ui.appearance.dark" = "深色";
+"ui.gif" = "GIF";
+"ui.browseFolder" = "浏览当前文件夹";
+"ui.hideFolderBrowser" = "收起浏览区";

@@ -2,6 +2,66 @@ import Foundation
 import ServiceManagement
 import Cocoa
 
+enum AppearanceMode: String, Codable, CaseIterable {
+    case system
+    case light
+    case dark
+}
+
+struct OriginalDesktopRecord: Codable, Equatable {
+    var imagePath: String
+    var imageScalingRawValue: Int?
+    var allowClipping: Bool?
+    var fillColorData: Data?
+
+    init(imagePath: String, imageScalingRawValue: Int?, allowClipping: Bool?, fillColorData: Data?) {
+        self.imagePath = imagePath
+        self.imageScalingRawValue = imageScalingRawValue
+        self.allowClipping = allowClipping
+        self.fillColorData = fillColorData
+    }
+
+    init(imageURL: URL, desktopOptions: [NSWorkspace.DesktopImageOptionKey: Any]) {
+        self.imagePath = imageURL.path
+        if let scaling = desktopOptions[.imageScaling] as? NSNumber {
+            imageScalingRawValue = scaling.intValue
+        } else {
+            imageScalingRawValue = nil
+        }
+        if let clipping = desktopOptions[.allowClipping] as? NSNumber {
+            allowClipping = clipping.boolValue
+        } else if let clipping = desktopOptions[.allowClipping] as? Bool {
+            allowClipping = clipping
+        } else {
+            allowClipping = nil
+        }
+        if let fillColor = desktopOptions[.fillColor] as? NSColor {
+            fillColorData = try? NSKeyedArchiver.archivedData(withRootObject: fillColor, requiringSecureCoding: true)
+        } else {
+            fillColorData = nil
+        }
+    }
+
+    var imageURL: URL {
+        URL(fileURLWithPath: imagePath)
+    }
+
+    var desktopImageOptions: [NSWorkspace.DesktopImageOptionKey: Any] {
+        var options: [NSWorkspace.DesktopImageOptionKey: Any] = [:]
+        if let imageScalingRawValue {
+            options[.imageScaling] = NSNumber(value: imageScalingRawValue)
+        }
+        if let allowClipping {
+            options[.allowClipping] = NSNumber(value: allowClipping)
+        }
+        if let fillColorData,
+           let fillColor = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: fillColorData) {
+            options[.fillColor] = fillColor
+        }
+        return options
+    }
+}
+
 class SettingsManager {
     static let shared = SettingsManager()
 
@@ -18,6 +78,8 @@ class SettingsManager {
     // MARK: - UserDefaults Keys (new)
     private let screenRegistryKey        = "sakurawallpaper_screen_registry"
     private let newScreenPolicyKey       = "sakurawallpaper_new_screen_policy"
+    private let appearanceModeKey        = "sakurawallpaper_appearance_mode"
+    private let originalDesktopRecordsKey = "sakurawallpaper_original_desktop_records"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -52,6 +114,28 @@ class SettingsManager {
         }
     }
 
+    // MARK: - Original Desktop Records
+
+    func originalDesktopRecord(for screenID: String) -> OriginalDesktopRecord? {
+        originalDesktopRegistry()[screenID]
+    }
+
+    func setOriginalDesktopRecord(_ record: OriginalDesktopRecord, for screenID: String) {
+        var registry = originalDesktopRegistry()
+        registry[screenID] = record
+        saveOriginalDesktopRegistry(registry)
+    }
+
+    func removeOriginalDesktopRecord(for screenID: String) {
+        var registry = originalDesktopRegistry()
+        registry.removeValue(forKey: screenID)
+        if registry.isEmpty {
+            defaults.removeObject(forKey: originalDesktopRecordsKey)
+        } else {
+            saveOriginalDesktopRegistry(registry)
+        }
+    }
+
     // MARK: - New Screen Policy
 
     var newScreenPolicy: New_Screen_Policy {
@@ -64,6 +148,19 @@ class SettingsManager {
         }
         set {
             defaults.set(newValue.rawValue, forKey: newScreenPolicyKey)
+        }
+    }
+
+    var appearanceMode: AppearanceMode {
+        get {
+            guard let raw = defaults.string(forKey: appearanceModeKey),
+                  let mode = AppearanceMode(rawValue: raw) else {
+                return .system
+            }
+            return mode
+        }
+        set {
+            defaults.set(newValue.rawValue, forKey: appearanceModeKey)
         }
     }
 
@@ -175,6 +272,24 @@ class SettingsManager {
             } catch {
                 print("Failed to update login item: \(error)")
             }
+        }
+    }
+
+    private func originalDesktopRegistry() -> [String: OriginalDesktopRecord] {
+        guard let data = defaults.data(forKey: originalDesktopRecordsKey) else {
+            return [:]
+        }
+        do {
+            return try JSONDecoder().decode([String: OriginalDesktopRecord].self, from: data)
+        } catch {
+            print("SettingsManager: failed to decode original desktop records: \(error)")
+            return [:]
+        }
+    }
+
+    private func saveOriginalDesktopRegistry(_ registry: [String: OriginalDesktopRecord]) {
+        if let data = try? JSONEncoder().encode(registry) {
+            defaults.set(data, forKey: originalDesktopRecordsKey)
         }
     }
 }

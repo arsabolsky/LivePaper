@@ -17,6 +17,7 @@ let package = Package(
                 "Resources",
                 "img",
                 "build",
+                "docs",
                 "Tests",
                 "AppDelegate.swift",
                 "MainWindowController.swift",

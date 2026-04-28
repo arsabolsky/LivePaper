@@ -70,19 +70,73 @@ private final class DragDropContainerView: NSView {
 
 class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCollectionViewDelegate {
     private enum Theme {
-        static let panel = NSColor(calibratedRed: 0.985, green: 0.988, blue: 0.995, alpha: 0.96)
-        static let panelStrong = NSColor(calibratedRed: 0.955, green: 0.968, blue: 0.986, alpha: 0.99)
-        static let border = NSColor(calibratedRed: 0.82, green: 0.86, blue: 0.93, alpha: 0.9)
+        static let windowBackground = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.085, green: 0.095, blue: 0.12, alpha: 1.0)
+                : NSColor(calibratedRed: 0.955, green: 0.965, blue: 0.98, alpha: 1.0)
+        }
+        static let panel = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.12, green: 0.13, blue: 0.17, alpha: 0.96)
+                : NSColor(calibratedRed: 0.985, green: 0.988, blue: 0.995, alpha: 0.98)
+        }
+        static let panelStrong = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.16, green: 0.18, blue: 0.23, alpha: 0.98)
+                : NSColor(calibratedRed: 0.958, green: 0.97, blue: 0.988, alpha: 0.99)
+        }
+        static let buttonSurface = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.19, green: 0.21, blue: 0.27, alpha: 1.0)
+                : NSColor(calibratedRed: 0.955, green: 0.968, blue: 0.986, alpha: 1.0)
+        }
+        static let buttonSurfaceStrong = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.24, green: 0.27, blue: 0.35, alpha: 1.0)
+                : NSColor(calibratedRed: 0.92, green: 0.95, blue: 0.99, alpha: 1.0)
+        }
+        static let browserSurface = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.09, green: 0.10, blue: 0.13, alpha: 0.92)
+                : NSColor(calibratedRed: 0.99, green: 0.992, blue: 0.998, alpha: 0.94)
+        }
+        static let border = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.31, green: 0.35, blue: 0.42, alpha: 1.0)
+                : NSColor(calibratedRed: 0.82, green: 0.86, blue: 0.93, alpha: 0.9)
+        }
         static let accent = NSColor(calibratedRed: 0.08, green: 0.36, blue: 0.78, alpha: 1.0)
         static let accentSoft = NSColor(calibratedRed: 0.55, green: 0.73, blue: 0.96, alpha: 1.0)
-        static let textPrimary = NSColor(calibratedRed: 0.12, green: 0.16, blue: 0.24, alpha: 1.0)
-        static let textSecondary = NSColor(calibratedRed: 0.39, green: 0.45, blue: 0.56, alpha: 1.0)
+        static let textPrimary = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.67, green: 0.80, blue: 1.0, alpha: 1.0)
+                : NSColor(calibratedRed: 0.10, green: 0.29, blue: 0.62, alpha: 1.0)
+        }
+        static let textSecondary = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedRed: 0.54, green: 0.70, blue: 0.93, alpha: 1.0)
+                : NSColor(calibratedRed: 0.27, green: 0.45, blue: 0.74, alpha: 1.0)
+        }
+    }
+
+    private enum Layout {
+        static let windowWidth: CGFloat = 720
+        static let windowHeight: CGFloat = 860
+        static let sideInset: CGFloat = 24
+        static let contentWidth: CGFloat = 672
+        static let headerY: CGFloat = 778
+        static let selectorY: CGFloat = 700
+        static let previewY: CGFloat = 344
+        static let infoY: CGFloat = 286
+        static let controlsY: CGFloat = 230
+        static let settingsY: CGFloat = 54
     }
 
     let wallpaperManager: WallpaperManager
 
     private var previewImageView: NSImageView!
     private var previewPlayerLayer: AVPlayerLayer!
+    private var previewStageView: NSView!
     private var previewPlayer: AVPlayer?
     private var previewEndObserver: Any?
     private var previewContainer: DragDropContainerView!
@@ -106,12 +160,18 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var intervalStepper: NSStepper!
     private var intervalLabel: NSTextField!
     private var intervalPrefix: NSTextField!
+    private var fitModeLabel: NSTextField!
+    private var fitModePopUp: NSPopUpButton!
+    private var browseFolderButton: NSButton!
     private var folderCountLabel: NSTextField!
     private var syncCheckbox: NSButton!
+    private var appearanceModeLabel: NSTextField!
+    private var appearanceModePopUp: NSPopUpButton!
     private var newScreenPolicyLabel: NSTextField!
     private var newScreenPolicyPopUp: NSPopUpButton!
     private var collectionView: NSCollectionView!
     private var scrollView: NSScrollView!
+    private var previewBrowserChromeView: NSView!
     private var dropZone: NSView!
     private var dropIconView: NSImageView!
     private var dropLabel: NSTextField!
@@ -120,12 +180,20 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var screenPopUp: NSPopUpButton!
     private var selectedScreen: NSScreen?
     private var baseBackgroundView: NSVisualEffectView?
+    private var headerView: NSView?
+    private var screenSelectorView: NSView?
+    private var controlsView: NSView?
+    private var settingsView: NSView?
+    private var footerView: NSView?
+    private var statusContainerView: NSView?
+    private var backdropGradientLayer: CAGradientLayer?
+    private var previewDisplayFrame: NSRect = .zero
 
     init(wallpaperManager: WallpaperManager) {
         self.wallpaperManager = wallpaperManager
         self.selectedScreen = NSScreen.screens.first(where: { $0.isBuiltIn }) ?? NSScreen.main
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 620, height: 780),
+            contentRect: NSRect(x: 0, y: 0, width: Layout.windowWidth, height: Layout.windowHeight),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -134,10 +202,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         window.title = "app.name".localized
         window.center()
         window.isReleasedWhenClosed = false
-        window.backgroundColor = NSColor.white
+        window.backgroundColor = Theme.windowBackground
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.appearance = NSAppearance(named: .aqua)
         setupUI()
     }
 
@@ -166,6 +233,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         NotificationCenter.default.addObserver(self, selector: #selector(statusChanged), name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screenListChanged), name: WallpaperManager.screenListDidChangeNotification, object: nil)
 
+        applyAppearanceMode()
         updateUI()
     }
 
@@ -179,13 +247,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         let gradient = CAGradientLayer()
         gradient.frame = visual.bounds
-        gradient.colors = [
-            NSColor(calibratedRed: 0.975, green: 0.98, blue: 0.988, alpha: 1.0).cgColor,
-            NSColor(calibratedRed: 0.93, green: 0.945, blue: 0.965, alpha: 1.0).cgColor
-        ]
         gradient.startPoint = CGPoint(x: 0.1, y: 1)
         gradient.endPoint = CGPoint(x: 0.9, y: 0)
         visual.layer?.addSublayer(gradient)
+        backdropGradientLayer = gradient
 
         contentView.addSubview(visual, positioned: .below, relativeTo: nil)
         baseBackgroundView = visual
@@ -206,31 +271,88 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func stylePrimaryButton(_ button: NSButton) {
         button.isBordered = false
         button.wantsLayer = true
-        button.layer?.cornerRadius = 20
-        button.layer?.backgroundColor = Theme.accent.cgColor
-        button.layer?.shadowColor = Theme.accent.cgColor
+        button.layer?.cornerRadius = 16
+        button.layer?.backgroundColor = Theme.buttonSurfaceStrong.cgColor
+        button.layer?.shadowColor = Theme.accentSoft.cgColor
         button.layer?.shadowOpacity = 0.14
         button.layer?.shadowRadius = 8
         button.layer?.shadowOffset = .zero
+        button.layer?.borderWidth = 1
+        button.layer?.borderColor = Theme.border.cgColor
         button.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
-        button.attributedTitle = NSAttributedString(
-            string: button.title,
-            attributes: [.foregroundColor: NSColor.white]
-        )
+        applyButtonTitle(button, color: Theme.textPrimary)
     }
 
     private func styleGhostButton(_ button: NSButton) {
         button.isBordered = false
         button.wantsLayer = true
-        button.layer?.cornerRadius = 16
-        button.layer?.backgroundColor = Theme.panelStrong.cgColor
+        button.layer?.cornerRadius = 14
+        button.layer?.backgroundColor = Theme.buttonSurfaceStrong.cgColor
         button.layer?.borderWidth = 1
         button.layer?.borderColor = Theme.border.cgColor
         button.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
+        applyButtonTitle(button, color: Theme.textPrimary)
+    }
+
+    private func styleCompactGhostButton(_ button: NSButton) {
+        styleGhostButton(button)
+        button.layer?.cornerRadius = 12
+        button.font = NSFont(name: "Avenir Next Demi Bold", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .semibold)
+        applyButtonTitle(button, color: Theme.textPrimary)
+    }
+
+    private func applyButtonTitle(_ button: NSButton, color: NSColor) {
+        let font = button.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
         button.attributedTitle = NSAttributedString(
             string: button.title,
-            attributes: [.foregroundColor: Theme.textPrimary]
+            attributes: [
+                .foregroundColor: color,
+                .font: font
+            ]
         )
+    }
+
+    private func styleCheckbox(_ button: NSButton) {
+        button.setButtonType(.toggle)
+        button.isBordered = false
+        button.imagePosition = .imageLeading
+        button.imageHugsTitle = true
+        button.contentTintColor = Theme.textPrimary
+        button.image = checkboxImage(selected: false)
+        button.alternateImage = checkboxImage(selected: true)
+        applyButtonTitle(button, color: Theme.textPrimary)
+    }
+
+    private func stylePopUp(_ popUp: NSPopUpButton) {
+        popUp.contentTintColor = Theme.textPrimary
+        let font = popUp.font ?? NSFont.systemFont(ofSize: 12, weight: .medium)
+        for item in popUp.itemArray {
+            item.attributedTitle = NSAttributedString(
+                string: item.title,
+                attributes: [
+                    .foregroundColor: Theme.textPrimary,
+                    .font: font
+                ]
+            )
+        }
+    }
+
+    private func checkboxImage(selected: Bool) -> NSImage? {
+        if #available(macOS 11.0, *) {
+            let name = selected ? "checkmark.square.fill" : "square"
+            let color = selected ? Theme.textPrimary : Theme.textSecondary
+            let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+            let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+                .withSymbolConfiguration(config)
+            image?.isTemplate = false
+            image?.lockFocus()
+            color.set()
+            let rect = NSRect(origin: .zero, size: image?.size ?? .zero)
+            rect.fill(using: .sourceAtop)
+            image?.unlockFocus()
+            return image
+        }
+        return nil
     }
 
     private func sectionLabel(_ text: String, frame: NSRect) -> NSTextField {
@@ -263,34 +385,31 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createHeader() -> NSView {
-        let header = NSView(frame: NSRect(x: 0, y: 704, width: 620, height: 76))
+        let header = NSView(frame: NSRect(x: 0, y: Layout.headerY, width: Layout.windowWidth, height: 82))
         header.wantsLayer = true
-        header.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.42).cgColor
+        headerView = header
 
         let appIcon = NSTextField(labelWithString: "🌸")
         appIcon.font = NSFont.systemFont(ofSize: 28)
         appIcon.alignment = .center
-        appIcon.frame = NSRect(x: 22, y: 23, width: 34, height: 34)
+        appIcon.frame = NSRect(x: 24, y: 26, width: 34, height: 34)
         header.addSubview(appIcon)
 
         let title = NSTextField(labelWithString: "app.name".localized)
         title.font = NSFont(name: "Avenir Next Demi Bold", size: 20) ?? NSFont.systemFont(ofSize: 20, weight: .semibold)
         title.textColor = Theme.textPrimary
-        title.frame = NSRect(x: 64, y: 36, width: 260, height: 24)
+        title.frame = NSRect(x: 68, y: 38, width: 320, height: 24)
         header.addSubview(title)
 
         let subtitle = NSTextField(labelWithString: "Wallpaper Workspace")
         subtitle.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .medium)
         subtitle.textColor = Theme.textSecondary
-        subtitle.frame = NSRect(x: 65, y: 20, width: 180, height: 14)
+        subtitle.frame = NSRect(x: 69, y: 21, width: 220, height: 14)
         header.addSubview(subtitle)
 
-        let statusContainer = NSView(frame: NSRect(x: 446, y: 22, width: 150, height: 32))
+        let statusContainer = NSView(frame: NSRect(x: 526, y: 24, width: 170, height: 34))
         statusContainer.wantsLayer = true
-        statusContainer.layer?.cornerRadius = 9
-        statusContainer.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.72).cgColor
-        statusContainer.layer?.borderWidth = 1
-        statusContainer.layer?.borderColor = Theme.border.cgColor
+        statusContainerView = statusContainer
         let indicatorBox = NSBox(frame: NSRect(x: 12, y: 12, width: 8, height: 8))
         indicatorBox.boxType = .custom
         indicatorBox.borderWidth = 0
@@ -302,11 +421,11 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         statusLabel = NSTextField(labelWithString: "ui.status".localized("ui.notSet".localized))
         statusLabel.font = NSFont(name: "Avenir Next Demi Bold", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .semibold)
         statusLabel.textColor = Theme.textSecondary
-        statusLabel.frame = NSRect(x: 28, y: 8, width: 112, height: 16)
+        statusLabel.frame = NSRect(x: 28, y: 9, width: 128, height: 16)
         statusContainer.addSubview(statusLabel)
         header.addSubview(statusContainer)
 
-        let separator = NSBox(frame: NSRect(x: 24, y: 0, width: 572, height: 1))
+        let separator = NSBox(frame: NSRect(x: Layout.sideInset, y: 0, width: Layout.contentWidth, height: 1))
         separator.boxType = .separator
         header.addSubview(separator)
 
@@ -314,27 +433,29 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createScreenSelector() -> NSView {
-        let container = NSView(frame: NSRect(x: 24, y: 636, width: 572, height: 56))
+        let container = NSView(frame: NSRect(x: Layout.sideInset, y: Layout.selectorY, width: Layout.contentWidth, height: 62))
         styleGlassCard(container, cornerRadius: 12, alpha: 0.94)
+        screenSelectorView = container
 
-        container.addSubview(sectionLabel("screen", frame: NSRect(x: 16, y: 32, width: 92, height: 14)))
+        container.addSubview(sectionLabel("screen", frame: NSRect(x: 18, y: 39, width: 92, height: 14)))
 
         let label = NSTextField(labelWithString: "\("ui.screen".localized):")
         label.font = NSFont(name: "Avenir Next Demi Bold", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .semibold)
         label.textColor = Theme.textSecondary
-        label.frame = NSRect(x: 16, y: 11, width: 60, height: 16)
+        label.frame = NSRect(x: 18, y: 14, width: 60, height: 16)
         container.addSubview(label)
 
-        screenPopUp = NSPopUpButton(frame: NSRect(x: 78, y: 7, width: 286, height: 26))
+        screenPopUp = NSPopUpButton(frame: NSRect(x: 80, y: 10, width: 350, height: 28))
         screenPopUp.target = self
         screenPopUp.action = #selector(screenSelectionChanged)
         screenPopUp.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .medium)
+        stylePopUp(screenPopUp)
         container.addSubview(screenPopUp)
 
         syncCheckbox = NSButton(checkboxWithTitle: "ui.syncScreens".localized, target: self, action: #selector(syncCheckboxChanged(_:)))
         syncCheckbox.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
-        syncCheckbox.contentTintColor = Theme.accent
-        syncCheckbox.frame = NSRect(x: 390, y: 10, width: 166, height: 20)
+        styleCheckbox(syncCheckbox)
+        syncCheckbox.frame = NSRect(x: 458, y: 14, width: 190, height: 20)
         syncCheckbox.toolTip = "ui.syncScreens.tooltip".localized
         container.addSubview(syncCheckbox)
 
@@ -366,6 +487,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             screenPopUp.addItem(withTitle: "\(displayName)\(suffix)\(linkIndicator)")
             screenPopUp.lastItem?.representedObject = screen
         }
+        stylePopUp(screenPopUp)
 
         if let selected = selectedScreen,
            let index = sortedScreens.firstIndex(of: selected) {
@@ -390,7 +512,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createPreviewContainer() -> NSView {
-        previewContainer = DragDropContainerView(frame: NSRect(x: 24, y: 292, width: 572, height: 332))
+        previewContainer = DragDropContainerView(frame: NSRect(x: Layout.sideInset, y: Layout.previewY, width: Layout.contentWidth, height: 340))
         styleGlassCard(previewContainer, cornerRadius: 16, alpha: 0.98)
         previewContainer.layer?.masksToBounds = true
         previewContainer.layer?.shadowOpacity = 0.16
@@ -414,7 +536,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         dropBox.fillColor = NSColor(calibratedRed: 0.92, green: 0.95, blue: 0.99, alpha: 0.95)
         dropZone = dropBox
 
-        dropIconView = NSImageView(frame: NSRect(x: 0, y: 188, width: 572, height: 48))
+        dropIconView = NSImageView(frame: NSRect(x: 0, y: 192, width: Layout.contentWidth, height: 48))
         dropIconView.imageAlignment = .alignCenter
         dropIconView.imageScaling = .scaleProportionallyDown
         if #available(macOS 11.0, *) {
@@ -430,21 +552,21 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         dropLabel.font = NSFont(name: "Avenir Next Demi Bold", size: 14) ?? NSFont.systemFont(ofSize: 13, weight: .semibold)
         dropLabel.textColor = Theme.textPrimary
         dropLabel.alignment = .center
-        dropLabel.frame = NSRect(x: 0, y: 146, width: 572, height: 34)
+        dropLabel.frame = NSRect(x: 0, y: 150, width: Layout.contentWidth, height: 34)
         dropZone.addSubview(dropLabel)
 
         dropFormatsLabel = NSTextField(labelWithString: "ui.formats".localized)
         dropFormatsLabel.font = NSFont(name: "Avenir Next Medium", size: 10) ?? NSFont.systemFont(ofSize: 10)
         dropFormatsLabel.textColor = Theme.textSecondary
         dropFormatsLabel.alignment = .center
-        dropFormatsLabel.frame = NSRect(x: 0, y: 126, width: 572, height: 16)
+        dropFormatsLabel.frame = NSRect(x: 0, y: 130, width: Layout.contentWidth, height: 16)
         dropZone.addSubview(dropFormatsLabel)
 
         dropTapHintLabel = NSTextField(labelWithString: "ui.tapToPick".localized)
         dropTapHintLabel.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .medium)
         dropTapHintLabel.textColor = Theme.textSecondary
         dropTapHintLabel.alignment = .center
-        dropTapHintLabel.frame = NSRect(x: 0, y: 102, width: 572, height: 18)
+        dropTapHintLabel.frame = NSRect(x: 0, y: 106, width: Layout.contentWidth, height: 18)
         dropZone.addSubview(dropTapHintLabel)
 
         let clickRecognizer = NSClickGestureRecognizer(target: self, action: #selector(selectFromDropZone))
@@ -452,20 +574,26 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         previewContainer.addSubview(dropZone)
 
-        previewImageView = NSImageView(frame: previewContainer.bounds)
-        previewImageView.imageScaling = .scaleProportionallyUpOrDown
+        previewStageView = NSView(frame: previewContainer.bounds)
+        previewStageView.wantsLayer = true
+        previewStageView.layer?.masksToBounds = true
+        previewStageView.layer?.backgroundColor = NSColor.black.cgColor
+        previewContainer.addSubview(previewStageView)
+
+        previewImageView = NSImageView(frame: previewStageView.bounds)
+        previewImageView.imageScaling = .scaleAxesIndependently
         previewImageView.imageAlignment = .alignCenter
         previewImageView.isHidden = true
-        previewContainer.addSubview(previewImageView)
+        previewStageView.addSubview(previewImageView)
 
         previewPlayerLayer = AVPlayerLayer()
         previewPlayerLayer.videoGravity = .resizeAspectFill
-        previewPlayerLayer.frame = previewContainer.bounds
-        previewContainer.layer?.addSublayer(previewPlayerLayer)
+        previewPlayerLayer.frame = previewStageView.bounds
+        previewStageView.layer?.addSublayer(previewPlayerLayer)
 
         let layout = NSCollectionViewFlowLayout()
-        layout.itemSize = NSSize(width: 88, height: 88)
-        layout.sectionInset = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        layout.itemSize = NSSize(width: 120, height: 76)
+        layout.sectionInset = NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
         layout.minimumInteritemSpacing = 10
         layout.minimumLineSpacing = 10
         layout.scrollDirection = .horizontal
@@ -477,15 +605,28 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         collectionView.register(ThumbnailItem.self, forItemWithIdentifier: ThumbnailItem.identifier)
         collectionView.dataSource = self
 
-        scrollView = NSScrollView(frame: previewContainer.bounds)
+        previewBrowserChromeView = NSView(frame: NSRect(x: 16, y: 16, width: Layout.contentWidth - 32, height: 96))
+        previewBrowserChromeView.wantsLayer = true
+        previewBrowserChromeView.layer?.cornerRadius = 14
+        previewBrowserChromeView.layer?.borderWidth = 1
+        previewBrowserChromeView.layer?.borderColor = Theme.border.cgColor
+        previewBrowserChromeView.layer?.backgroundColor = Theme.browserSurface.cgColor
+        previewBrowserChromeView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.22).cgColor
+        previewBrowserChromeView.layer?.shadowOpacity = 0.22
+        previewBrowserChromeView.layer?.shadowRadius = 12
+        previewBrowserChromeView.layer?.shadowOffset = NSSize(width: 0, height: -2)
+        previewBrowserChromeView.isHidden = true
+
+        scrollView = NSScrollView(frame: NSRect(x: 8, y: 8, width: previewBrowserChromeView.bounds.width - 16, height: previewBrowserChromeView.bounds.height - 16))
         scrollView.documentView = collectionView
         scrollView.hasHorizontalScroller = true
         scrollView.hasVerticalScroller = false
         scrollView.autohidesScrollers = false
         scrollView.scrollerStyle = .legacy
-        scrollView.isHidden = true
         scrollView.drawsBackground = false
-        previewContainer.addSubview(scrollView)
+        scrollView.isHidden = true
+        previewBrowserChromeView.addSubview(scrollView)
+        previewContainer.addSubview(previewBrowserChromeView)
 
         let overlayBox = NSBox(frame: previewContainer.bounds)
         overlayBox.boxType = .custom
@@ -517,7 +658,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createInfoBar() -> NSView {
-        let bar = NSView(frame: NSRect(x: 24, y: 244, width: 572, height: 42))
+        let bar = NSView(frame: NSRect(x: Layout.sideInset, y: Layout.infoY, width: Layout.contentWidth, height: 44))
         bar.wantsLayer = true
         bar.layer?.backgroundColor = NSColor.clear.cgColor
 
@@ -525,43 +666,50 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         fileNameLabel.font = NSFont(name: "Avenir Next Demi Bold", size: 13) ?? NSFont.systemFont(ofSize: 13, weight: .semibold)
         fileNameLabel.textColor = Theme.textPrimary
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
-        fileNameLabel.frame = NSRect(x: 2, y: 19, width: 390, height: 18)
+        fileNameLabel.frame = NSRect(x: 0, y: 22, width: 430, height: 18)
         bar.addSubview(fileNameLabel)
 
         fileTypeLabel = NSTextField(labelWithString: "")
         fileTypeLabel.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .medium)
         fileTypeLabel.textColor = Theme.textSecondary
         fileTypeLabel.alignment = .right
-        fileTypeLabel.frame = NSRect(x: 408, y: 19, width: 160, height: 18)
+        fileTypeLabel.frame = NSRect(x: 438, y: 22, width: 106, height: 18)
         bar.addSubview(fileTypeLabel)
 
         folderCountLabel = NSTextField(labelWithString: "")
         folderCountLabel.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11)
         folderCountLabel.textColor = Theme.textSecondary
-        folderCountLabel.frame = NSRect(x: 2, y: 2, width: 420, height: 16)
+        folderCountLabel.frame = NSRect(x: 0, y: 2, width: 360, height: 16)
         bar.addSubview(folderCountLabel)
+
+        browseFolderButton = NSButton(title: "ui.browseFolder".localized, target: self, action: #selector(toggleFolderBrowser))
+        browseFolderButton.frame = NSRect(x: 552, y: 8, width: 120, height: 28)
+        browseFolderButton.isHidden = true
+        styleCompactGhostButton(browseFolderButton)
+        bar.addSubview(browseFolderButton)
 
         return bar
     }
 
     private func createControls() -> NSView {
-        let controls = NSView(frame: NSRect(x: 24, y: 190, width: 572, height: 48))
+        let controls = NSView(frame: NSRect(x: Layout.sideInset, y: Layout.controlsY, width: Layout.contentWidth, height: 42))
         controls.wantsLayer = true
         controls.layer?.backgroundColor = NSColor.clear.cgColor
+        controlsView = controls
 
         selectFileButton = NSButton(title: "ui.selectFile".localized, target: self, action: #selector(selectFile))
-        selectFileButton.frame = NSRect(x: 0, y: 6, width: 168, height: 36)
+        selectFileButton.frame = NSRect(x: 0, y: 0, width: 210, height: 38)
         stylePrimaryButton(selectFileButton)
         controls.addSubview(selectFileButton)
 
         selectFolderButton = NSButton(title: "ui.selectFolder".localized, target: self, action: #selector(selectFolder))
-        selectFolderButton.frame = NSRect(x: 178, y: 6, width: 168, height: 36)
+        selectFolderButton.frame = NSRect(x: 224, y: 0, width: 210, height: 38)
         styleGhostButton(selectFolderButton)
         controls.addSubview(selectFolderButton)
 
         stopButton = NSButton(title: "ui.stopWallpaper".localized, target: self, action: #selector(stopWallpaper))
         stopButton.controlSize = .regular
-        stopButton.frame = NSRect(x: 356, y: 6, width: 216, height: 36)
+        stopButton.frame = NSRect(x: 448, y: 0, width: 224, height: 38)
         styleGhostButton(stopButton)
         stopButton.toolTip = "ui.stopWallpaperTooltip".localized
         controls.addSubview(stopButton)
@@ -570,37 +718,38 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createSettings() -> NSView {
-        let settings = NSView(frame: NSRect(x: 24, y: 44, width: 572, height: 134))
+        let settings = NSView(frame: NSRect(x: Layout.sideInset, y: Layout.settingsY, width: Layout.contentWidth, height: 158))
         styleGlassCard(settings, cornerRadius: 14, alpha: 0.95)
+        settingsView = settings
 
-        settings.addSubview(sectionLabel("rotation", frame: NSRect(x: 16, y: 104, width: 120, height: 14)))
-        settings.addSubview(sectionLabel("preferences", frame: NSRect(x: 300, y: 104, width: 120, height: 14)))
+        settings.addSubview(sectionLabel("wallpaper", frame: NSRect(x: 18, y: 130, width: 120, height: 14)))
+        settings.addSubview(sectionLabel("app", frame: NSRect(x: 346, y: 130, width: 120, height: 14)))
 
-        let divider = NSBox(frame: NSRect(x: 280, y: 16, width: 1, height: 98))
+        let divider = NSBox(frame: NSRect(x: 326, y: 18, width: 1, height: 120))
         divider.boxType = .separator
         settings.addSubview(divider)
 
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
                                 target: self, action: #selector(launchSwitchChanged))
         launchSwitch.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
-        launchSwitch.contentTintColor = Theme.accent
-        launchSwitch.frame = NSRect(x: 300, y: 52, width: 120, height: 20)
+        styleCheckbox(launchSwitch)
+        launchSwitch.frame = NSRect(x: 346, y: 100, width: 260, height: 20)
         launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
         settings.addSubview(launchSwitch)
 
         pauseSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenInvisible".localized,
                                target: self, action: #selector(pauseSwitchChanged))
         pauseSwitch.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
-        pauseSwitch.contentTintColor = Theme.accent
-        pauseSwitch.frame = NSRect(x: 300, y: 30, width: 230, height: 20)
+        styleCheckbox(pauseSwitch)
+        pauseSwitch.frame = NSRect(x: 346, y: 76, width: 280, height: 20)
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         settings.addSubview(pauseSwitch)
 
         syncDesktopSwitch = NSButton(checkboxWithTitle: "ui.syncDesktopWallpaper".localized,
                                      target: self, action: #selector(syncDesktopSwitchChanged))
         syncDesktopSwitch.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
-        syncDesktopSwitch.contentTintColor = Theme.accent
-        syncDesktopSwitch.frame = NSRect(x: 300, y: 8, width: 250, height: 20)
+        styleCheckbox(syncDesktopSwitch)
+        syncDesktopSwitch.frame = NSRect(x: 346, y: 52, width: 290, height: 20)
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         syncDesktopSwitch.toolTip = "ui.syncDesktopWallpaper.tooltip".localized
         settings.addSubview(syncDesktopSwitch)
@@ -608,34 +757,53 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
                                   target: self, action: #selector(rotationSwitchChanged))
         rotationSwitch.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
-        rotationSwitch.contentTintColor = Theme.accent
-        rotationSwitch.frame = NSRect(x: 16, y: 78, width: 120, height: 20)
+        styleCheckbox(rotationSwitch)
+        rotationSwitch.frame = NSRect(x: 18, y: 92, width: 130, height: 20)
         rotationSwitch.state = Screen_Config.default.isRotationEnabled ? .on : .off
         settings.addSubview(rotationSwitch)
 
         shuffleSwitch = NSButton(checkboxWithTitle: "ui.shuffleMode".localized,
                                  target: self, action: #selector(shuffleSwitchChanged))
         shuffleSwitch.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
-        shuffleSwitch.contentTintColor = Theme.accent
-        shuffleSwitch.frame = NSRect(x: 142, y: 78, width: 120, height: 20)
+        styleCheckbox(shuffleSwitch)
+        shuffleSwitch.frame = NSRect(x: 156, y: 92, width: 130, height: 20)
         shuffleSwitch.state = Screen_Config.default.isShuffleMode ? .on : .off
         settings.addSubview(shuffleSwitch)
 
         includeSubfoldersSwitch = NSButton(checkboxWithTitle: "ui.includeSubfolders".localized,
                                            target: self, action: #selector(includeSubfoldersChanged))
         includeSubfoldersSwitch.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
-        includeSubfoldersSwitch.contentTintColor = Theme.accent
-        includeSubfoldersSwitch.frame = NSRect(x: 16, y: 52, width: 180, height: 20)
+        styleCheckbox(includeSubfoldersSwitch)
+        includeSubfoldersSwitch.frame = NSRect(x: 18, y: 68, width: 220, height: 20)
         includeSubfoldersSwitch.state = Screen_Config.default.includeSubfolders ? .on : .off
         settings.addSubview(includeSubfoldersSwitch)
+
+        fitModeLabel = NSTextField(labelWithString: "ui.fitMode".localized + ":")
+        fitModeLabel.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
+        fitModeLabel.textColor = Theme.textPrimary
+        fitModeLabel.frame = NSRect(x: 18, y: 40, width: 76, height: 20)
+        settings.addSubview(fitModeLabel)
+
+        fitModePopUp = NSPopUpButton(frame: NSRect(x: 94, y: 36, width: 138, height: 26))
+        fitModePopUp.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
+        fitModePopUp.target = self
+        fitModePopUp.action = #selector(fitModeChanged(_:))
+        fitModePopUp.addItem(withTitle: "ui.fit.fill".localized)
+        fitModePopUp.lastItem?.representedObject = WallpaperFitMode.fill.rawValue
+        fitModePopUp.addItem(withTitle: "ui.fit.fit".localized)
+        fitModePopUp.lastItem?.representedObject = WallpaperFitMode.fit.rawValue
+        fitModePopUp.addItem(withTitle: "ui.fit.stretch".localized)
+        fitModePopUp.lastItem?.representedObject = WallpaperFitMode.stretch.rawValue
+        stylePopUp(fitModePopUp)
+        settings.addSubview(fitModePopUp)
 
         intervalPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
         intervalPrefix.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
         intervalPrefix.textColor = Theme.textPrimary
-        intervalPrefix.frame = NSRect(x: 16, y: 24, width: 112, height: 20)
+        intervalPrefix.frame = NSRect(x: 18, y: 12, width: 112, height: 20)
         settings.addSubview(intervalPrefix)
 
-        intervalField = NSTextField(frame: NSRect(x: 126, y: 22, width: 54, height: 24))
+        intervalField = NSTextField(frame: NSRect(x: 130, y: 8, width: 56, height: 24))
         intervalField.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
         intervalField.alignment = .right
         intervalField.target = self
@@ -652,7 +820,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalField.integerValue = Screen_Config.default.rotationIntervalMinutes
         settings.addSubview(intervalField)
 
-        intervalStepper = NSStepper(frame: NSRect(x: 184, y: 24, width: 18, height: 22))
+        intervalStepper = NSStepper(frame: NSRect(x: 192, y: 10, width: 18, height: 22))
         intervalStepper.minValue = 1
         intervalStepper.maxValue = 1440
         intervalStepper.increment = 1
@@ -665,16 +833,35 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalLabel = NSTextField(labelWithString: formatInterval(minutes: Screen_Config.default.rotationIntervalMinutes))
         intervalLabel.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11)
         intervalLabel.textColor = Theme.textSecondary
-        intervalLabel.frame = NSRect(x: 16, y: 4, width: 246, height: 16)
+        intervalLabel.frame = NSRect(x: 218, y: 12, width: 70, height: 16)
         settings.addSubview(intervalLabel)
+
+        appearanceModeLabel = NSTextField(labelWithString: "ui.appearance".localized + ":")
+        appearanceModeLabel.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
+        appearanceModeLabel.textColor = Theme.textPrimary
+        appearanceModeLabel.frame = NSRect(x: 346, y: 28, width: 120, height: 18)
+        settings.addSubview(appearanceModeLabel)
+
+        appearanceModePopUp = NSPopUpButton(frame: NSRect(x: 346, y: 4, width: 136, height: 26))
+        appearanceModePopUp.target = self
+        appearanceModePopUp.action = #selector(appearanceModeChanged(_:))
+        appearanceModePopUp.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
+        appearanceModePopUp.addItem(withTitle: "ui.appearance.system".localized)
+        appearanceModePopUp.lastItem?.representedObject = AppearanceMode.system.rawValue
+        appearanceModePopUp.addItem(withTitle: "ui.appearance.light".localized)
+        appearanceModePopUp.lastItem?.representedObject = AppearanceMode.light.rawValue
+        appearanceModePopUp.addItem(withTitle: "ui.appearance.dark".localized)
+        appearanceModePopUp.lastItem?.representedObject = AppearanceMode.dark.rawValue
+        stylePopUp(appearanceModePopUp)
+        settings.addSubview(appearanceModePopUp)
 
         newScreenPolicyLabel = NSTextField(labelWithString: "ui.newScreenPolicy".localized + ":")
         newScreenPolicyLabel.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
         newScreenPolicyLabel.textColor = Theme.textPrimary
-        newScreenPolicyLabel.frame = NSRect(x: 300, y: 80, width: 120, height: 20)
+        newScreenPolicyLabel.frame = NSRect(x: 500, y: 28, width: 148, height: 18)
         settings.addSubview(newScreenPolicyLabel)
 
-        newScreenPolicyPopUp = NSPopUpButton(frame: NSRect(x: 424, y: 76, width: 128, height: 25))
+        newScreenPolicyPopUp = NSPopUpButton(frame: NSRect(x: 500, y: 4, width: 148, height: 26))
         newScreenPolicyPopUp.target = self
         newScreenPolicyPopUp.action = #selector(newScreenPolicyChanged(_:))
         newScreenPolicyPopUp.font = NSFont(name: "Avenir Next Medium", size: 12) ?? NSFont.systemFont(ofSize: 12)
@@ -683,6 +870,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         newScreenPolicyPopUp.lastItem?.representedObject = New_Screen_Policy.inheritSyncGroup.rawValue
         newScreenPolicyPopUp.addItem(withTitle: "ui.newScreenPolicy.blank".localized)
         newScreenPolicyPopUp.lastItem?.representedObject = New_Screen_Policy.blank.rawValue
+        stylePopUp(newScreenPolicyPopUp)
         settings.addSubview(newScreenPolicyPopUp)
 
 
@@ -709,12 +897,108 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
     }
 
-    private func createFooter() -> NSView {
-        let footer = NSView(frame: NSRect(x: 0, y: 0, width: 620, height: 34))
-        footer.wantsLayer = true
-        footer.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.26).cgColor
+    private func updateAppearanceModeMenu() {
+        let currentMode = SettingsManager.shared.appearanceMode
+        for (index, item) in appearanceModePopUp.itemArray.enumerated() {
+            if let rawValue = item.representedObject as? String,
+               rawValue == currentMode.rawValue {
+                appearanceModePopUp.selectItem(at: index)
+                break
+            }
+        }
+    }
 
-        let separator = NSBox(frame: NSRect(x: 24, y: 33, width: 572, height: 1))
+    private func updateFitModeMenu(for fitMode: WallpaperFitMode) {
+        for (index, item) in fitModePopUp.itemArray.enumerated() {
+            if let rawValue = item.representedObject as? String,
+               rawValue == fitMode.rawValue {
+                fitModePopUp.selectItem(at: index)
+                break
+            }
+        }
+    }
+
+    private func applyAppearanceMode() {
+        switch SettingsManager.shared.appearanceMode {
+        case .system:
+            window?.appearance = nil
+        case .light:
+            window?.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            window?.appearance = NSAppearance(named: .darkAqua)
+        }
+        refreshTheme()
+    }
+
+    private func refreshTheme() {
+        let isDark = window?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        backdropGradientLayer?.colors = isDark
+            ? [
+                NSColor(calibratedRed: 0.06, green: 0.07, blue: 0.09, alpha: 1.0).cgColor,
+                NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.18, alpha: 1.0).cgColor
+            ]
+            : [
+                NSColor(calibratedRed: 0.975, green: 0.98, blue: 0.988, alpha: 1.0).cgColor,
+                NSColor(calibratedRed: 0.93, green: 0.945, blue: 0.965, alpha: 1.0).cgColor
+            ]
+        baseBackgroundView?.material = isDark ? .underWindowBackground : .sidebar
+        window?.backgroundColor = Theme.windowBackground
+        if let screenSelectorView {
+            styleGlassCard(screenSelectorView, cornerRadius: 12, alpha: 0.94)
+        }
+        if let settingsView {
+            styleGlassCard(settingsView, cornerRadius: 14, alpha: 0.95)
+        }
+        if let headerView {
+            headerView.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.78).cgColor
+        }
+        controlsView?.layer?.backgroundColor = Theme.panel.withAlphaComponent(0.12).cgColor
+        if let footerView {
+            footerView.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.78).cgColor
+        }
+        if let statusContainerView {
+            statusContainerView.layer?.cornerRadius = 9
+            statusContainerView.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.86).cgColor
+            statusContainerView.layer?.borderWidth = 1
+            statusContainerView.layer?.borderColor = Theme.border.cgColor
+        }
+        if let browseFolderButton {
+            styleCompactGhostButton(browseFolderButton)
+        }
+        stylePrimaryButton(selectFileButton)
+        styleGhostButton(selectFolderButton)
+        styleGhostButton(stopButton)
+        styleCheckbox(syncCheckbox)
+        styleCheckbox(launchSwitch)
+        styleCheckbox(pauseSwitch)
+        styleCheckbox(syncDesktopSwitch)
+        styleCheckbox(rotationSwitch)
+        styleCheckbox(shuffleSwitch)
+        styleCheckbox(includeSubfoldersSwitch)
+        stylePopUp(screenPopUp)
+        stylePopUp(fitModePopUp)
+        stylePopUp(appearanceModePopUp)
+        stylePopUp(newScreenPolicyPopUp)
+        previewBrowserChromeView?.layer?.backgroundColor = Theme.browserSurface.cgColor
+        previewBrowserChromeView?.layer?.borderColor = Theme.border.cgColor
+        intervalField?.backgroundColor = isDark
+            ? NSColor(calibratedRed: 0.17, green: 0.19, blue: 0.24, alpha: 1.0)
+            : NSColor.white
+        intervalField?.textColor = Theme.textPrimary
+        previewStageView?.layer?.backgroundColor = NSColor.black.cgColor
+        if let dropZone = dropZone as? NSBox {
+            dropZone.fillColor = Theme.panelStrong
+        }
+        previewLoadingOverlay.wantsLayer = true
+        previewLoadingOverlay.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.88).cgColor
+    }
+
+    private func createFooter() -> NSView {
+        let footer = NSView(frame: NSRect(x: 0, y: 0, width: Layout.windowWidth, height: 28))
+        footer.wantsLayer = true
+        footerView = footer
+
+        let separator = NSBox(frame: NSRect(x: Layout.sideInset, y: 27, width: Layout.contentWidth, height: 1))
         separator.boxType = .separator
         footer.addSubview(separator)
 
@@ -722,7 +1006,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         author.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .medium)
         author.textColor = Theme.textSecondary
         author.alignment = .center
-        author.frame = NSRect(x: 24, y: 8, width: 572, height: 16)
+        author.frame = NSRect(x: Layout.sideInset, y: 6, width: Layout.contentWidth, height: 16)
         footer.addSubview(author)
 
         return footer
@@ -859,6 +1143,47 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     @objc func syncDesktopSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.syncDesktopWallpaper = (sender.state == .on)
     }
+
+    @objc func fitModeChanged(_ sender: NSPopUpButton) {
+        guard let screen = selectedScreen,
+              let rawValue = sender.selectedItem?.representedObject as? String,
+              let fitMode = WallpaperFitMode(rawValue: rawValue) else { return }
+        let id = SettingsManager.screenIdentifier(screen)
+        var config = SettingsManager.shared.screenConfig(for: id)
+        config.wallpaperFit = fitMode
+        SettingsManager.shared.setScreenConfig(config, for: id)
+        wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
+        wallpaperManager.refreshWallpaperFit(for: screen)
+
+        if config.isSynced {
+            for syncedScreen in NSScreen.screens where syncedScreen != screen {
+                let sid = SettingsManager.screenIdentifier(syncedScreen)
+                if SettingsManager.shared.screenConfig(for: sid).isSynced {
+                    wallpaperManager.refreshWallpaperFit(for: syncedScreen)
+                }
+            }
+        }
+        updateUI()
+    }
+
+    @objc func appearanceModeChanged(_ sender: NSPopUpButton) {
+        guard let rawValue = sender.selectedItem?.representedObject as? String,
+              let mode = AppearanceMode(rawValue: rawValue) else { return }
+        SettingsManager.shared.appearanceMode = mode
+        applyAppearanceMode()
+        updateUI()
+    }
+
+    @objc private func toggleFolderBrowser() {
+        guard let screen = selectedScreen else { return }
+        let id = SettingsManager.screenIdentifier(screen)
+        var config = SettingsManager.shared.screenConfig(for: id)
+        config.isFolderBrowserVisible.toggle()
+        SettingsManager.shared.setScreenConfig(config, for: id)
+        wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
+        currentPreviewBrowserVisible = config.isFolderBrowserVisible
+        updateUI()
+    }
     
     @objc func includeSubfoldersChanged(_ sender: NSButton) {
         guard let screen = selectedScreen else { return }
@@ -935,6 +1260,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private var currentPreviewPath: String?
+    private var currentPreviewFitMode: WallpaperFitMode?
+    private var currentPreviewIsFolder: Bool?
+    private var currentPreviewBrowserVisible: Bool?
 
     private func suggestedPickerDirectoryURL() -> URL? {
         let selectedPath: String?
@@ -1003,9 +1331,11 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     func updateUI() {
         updateScreenMenu()
         updateNewScreenPolicyMenu()
+        updateAppearanceModeMenu()
 
         let selectedScreenID = selectedScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
         let config = SettingsManager.shared.screenConfig(for: selectedScreenID)
+        updateFitModeMenu(for: config.wallpaperFit)
 
         // Sync checkbox — only meaningful with multiple screens
         syncCheckbox.state = config.isSynced ? .on : .off
@@ -1023,6 +1353,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         let isShuffleMode = config.isShuffleMode
         let currentIncludeSubfolders = config.includeSubfolders
         let currentInterval = config.rotationIntervalMinutes
+        let browserVisible = config.isFolderBrowserVisible
 
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
@@ -1049,8 +1380,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             let recursive = currentIncludeSubfolders ? "ui.recursiveEnabled".localized : "ui.recursiveDisabled".localized
             let playlistCount = wallpaperManager.playlist(for: selectedScreenID).count
             folderCountLabel.stringValue = "ui.folderItems".localized(playlistCount, recursive)
+            browseFolderButton.isHidden = playlistCount == 0
+            browseFolderButton.title = browserVisible ? "ui.hideFolderBrowser".localized : "ui.browseFolder".localized
+            styleCompactGhostButton(browseFolderButton)
+            browseFolderButton.alphaValue = playlistCount == 0 ? 0.0 : 1.0
         } else {
             folderCountLabel.stringValue = ""
+            browseFolderButton.isHidden = true
         }
 
         var wallpaperPath: String?
@@ -1076,7 +1412,16 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 fileTypeLabel.stringValue = "ui.folderMode".localized
             } else {
                 fileNameLabel.stringValue = filename
-                fileTypeLabel.stringValue = type == .video ? "ui.video".localized : "ui.image".localized
+                switch type {
+                case .video:
+                    fileTypeLabel.stringValue = "ui.video".localized
+                case .gif:
+                    fileTypeLabel.stringValue = "ui.gif".localized
+                case .image:
+                    fileTypeLabel.stringValue = "ui.image".localized
+                case .unsupported:
+                    fileTypeLabel.stringValue = ""
+                }
             }
 
             let isAutoPaused = SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally && !isCurrentlyPaused
@@ -1084,17 +1429,17 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 if isCurrentlyPaused {
                     indicator.fillColor = .systemYellow
                     statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
-                    statusLabel.textColor = .systemYellow
+                    statusLabel.textColor = Theme.textPrimary
                     previewPlayer?.pause()
                 } else if isAutoPaused {
                     indicator.fillColor = .systemOrange
                     statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
-                    statusLabel.textColor = .systemOrange
+                    statusLabel.textColor = Theme.textPrimary
                     previewPlayer?.pause()
                 } else {
                     indicator.fillColor = .systemGreen
                     statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
-                    statusLabel.textColor = .systemGreen
+                    statusLabel.textColor = Theme.textPrimary
                     previewPlayer?.play()
                 }
             }
@@ -1102,6 +1447,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             showPreview(url: url, type: type)
         } else {
             currentPreviewPath = nil
+            currentPreviewFitMode = nil
+            currentPreviewIsFolder = nil
+            currentPreviewBrowserVisible = nil
             clearPreview()
             fileNameLabel.stringValue = "ui.noWallpaper".localized
             fileTypeLabel.stringValue = ""
@@ -1112,6 +1460,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             statusLabel.stringValue = "ui.status".localized("ui.notSet".localized)
             statusLabel.textColor = Theme.textSecondary
 
+            previewStageView.isHidden = true
             dropZone.isHidden = false
             dropLabel.stringValue = "ui.dropHere".localized
             setDropHighlight(active: false)
@@ -1124,53 +1473,65 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         let previewScreenID = selectedScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
         let previewConfig = SettingsManager.shared.screenConfig(for: previewScreenID)
         let isFolder = previewConfig.isFolderMode
+        let browserVisible = isFolder && previewConfig.isFolderBrowserVisible
 
-        if currentPreviewPath == url.path {
-            if isFolder {
+        if currentPreviewPath == url.path,
+           currentPreviewFitMode == previewConfig.wallpaperFit,
+           currentPreviewIsFolder == isFolder,
+           currentPreviewBrowserVisible == browserVisible {
+            if isFolder && browserVisible {
+                applyPreviewLayout(isFolder: true, browserVisible: true)
                 collectionView.reloadData()
             }
             return
         }
         
         currentPreviewPath = url.path
+        currentPreviewFitMode = previewConfig.wallpaperFit
+        currentPreviewIsFolder = isFolder
+        currentPreviewBrowserVisible = browserVisible
         clearPreview()
+        previewStageView.isHidden = false
         dropZone.isHidden = true
-        
-        if isFolder {
-            scrollView.isHidden = false
-            scrollView.frame = NSRect(x: 0, y: 0, width: 572, height: 112)
-            let previewFrame = NSRect(x: 0, y: 112, width: 572, height: 220)
-            previewImageView.frame = previewFrame
-            previewPlayerLayer.frame = previewFrame
+
+        applyPreviewLayout(isFolder: isFolder, browserVisible: browserVisible)
+        if isFolder && browserVisible {
             collectionView.reloadData()
             collectionView.layoutSubtreeIfNeeded()
             scrollView.reflectScrolledClipView(scrollView.contentView)
-        } else {
-            scrollView.isHidden = true
-            previewImageView.frame = previewContainer.bounds
-            previewPlayerLayer.frame = previewContainer.bounds
         }
 
         switch type {
         case .image:
             setPreviewLoading(true)
-            let targetSize = previewImageView.frame.size
-            let fallbackSize = NSSize(width: 572, height: isFolder ? 220 : 332)
+            let targetSize = previewDisplayFrame.size
+            let fallbackSize = NSSize(width: Layout.contentWidth, height: 340)
             let requestedSize = (targetSize.width > 0 && targetSize.height > 0) ? targetSize : fallbackSize
 
             ThumbnailProvider.shared.requestThumbnail(for: url, size: requestedSize) { [weak self] image in
                 guard let self, self.currentPreviewPath == url.path else { return }
                 self.setPreviewLoading(false)
                 guard let image else { return }
-                previewImageView.image = image
-                previewImageView.isHidden = false
-                previewPlayerLayer.isHidden = true
+                self.previewImageView.image = image
+                self.layoutPreviewImage(for: image.size, fitMode: previewConfig.wallpaperFit)
+                self.previewImageView.isHidden = false
+                self.previewPlayerLayer.isHidden = true
             }
+        case .gif:
+            setPreviewLoading(false)
+            guard let image = NSImage(contentsOf: url) else { return }
+            previewImageView.image = image
+            previewImageView.animates = true
+            layoutPreviewImage(for: image.size, fitMode: previewConfig.wallpaperFit)
+            previewImageView.isHidden = false
+            previewPlayerLayer.isHidden = true
         case .video:
             setPreviewLoading(false)
             previewPlayer = AVPlayer(url: url)
             previewPlayer?.isMuted = true
             previewPlayerLayer.player = previewPlayer
+            previewPlayerLayer.videoGravity = previewConfig.wallpaperFit.avLayerVideoGravity
+            previewPlayerLayer.frame = previewStageView.bounds
             previewPlayerLayer.isHidden = false
             previewImageView.isHidden = true
             previewPlayer?.play()
@@ -1199,7 +1560,55 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewPlayer = nil
         previewPlayerLayer.player = nil
         previewImageView.image = nil
+        previewImageView.animates = false
+        previewStageView.isHidden = false
         scrollView.isHidden = true
+        previewBrowserChromeView.isHidden = true
+    }
+
+    private func applyPreviewLayout(isFolder: Bool, browserVisible: Bool) {
+        previewDisplayFrame = previewContainer.bounds
+        previewStageView.frame = previewDisplayFrame
+        previewPlayerLayer.frame = previewStageView.bounds
+        previewImageView.frame = previewStageView.bounds
+
+        let shouldShowBrowser = isFolder && browserVisible
+        previewBrowserChromeView.isHidden = !shouldShowBrowser
+        scrollView.isHidden = !shouldShowBrowser
+        if shouldShowBrowser {
+            previewBrowserChromeView.frame = NSRect(x: 16, y: 16, width: previewContainer.bounds.width - 32, height: 96)
+            scrollView.frame = NSRect(x: 8, y: 8, width: previewBrowserChromeView.bounds.width - 16, height: previewBrowserChromeView.bounds.height - 16)
+        }
+    }
+
+    private func layoutPreviewImage(for imageSize: NSSize, fitMode: WallpaperFitMode) {
+        let bounds = previewStageView.bounds
+        guard imageSize.width > 0, imageSize.height > 0 else {
+            previewImageView.frame = bounds
+            return
+        }
+
+        switch fitMode {
+        case .stretch:
+            previewImageView.frame = bounds
+        case .fit:
+            previewImageView.frame = aspectRect(for: imageSize, in: bounds, fill: false)
+        case .fill:
+            previewImageView.frame = aspectRect(for: imageSize, in: bounds, fill: true)
+        }
+    }
+
+    private func aspectRect(for imageSize: NSSize, in bounds: NSRect, fill: Bool) -> NSRect {
+        let widthRatio = bounds.width / imageSize.width
+        let heightRatio = bounds.height / imageSize.height
+        let scale = fill ? max(widthRatio, heightRatio) : min(widthRatio, heightRatio)
+        let fittedSize = NSSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        return NSRect(
+            x: bounds.midX - (fittedSize.width / 2),
+            y: bounds.midY - (fittedSize.height / 2),
+            width: fittedSize.width,
+            height: fittedSize.height
+        )
     }
 
     private func setPreviewLoading(_ loading: Bool) {
@@ -1286,6 +1695,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
                 wallpaperManager.startRotationTimer()
             }
+            if config.isFolderBrowserVisible {
+                config.isFolderBrowserVisible = false
+                SettingsManager.shared.setScreenConfig(config, for: id)
+                wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
+                currentPreviewBrowserVisible = false
+            }
             wallpaperManager.selectPlaylistItem(at: indexPath.item, for: screen)
             updateUI()
         }
@@ -1315,5 +1730,18 @@ extension NSScreen {
             return false
         }
         return CGDisplayIsBuiltin(number.uint32Value) != 0
+    }
+}
+
+private extension WallpaperFitMode {
+    var avLayerVideoGravity: AVLayerVideoGravity {
+        switch self {
+        case .fill:
+            return .resizeAspectFill
+        case .fit:
+            return .resizeAspect
+        case .stretch:
+            return .resize
+        }
     }
 }
