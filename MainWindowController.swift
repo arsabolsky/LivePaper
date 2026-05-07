@@ -19,8 +19,7 @@ private final class DragDropContainerView: NSView {
         layer?.backgroundColor = NSColor.clear.cgColor
         layer?.borderColor = isHighlightedForDrop
             ? NSColor(calibratedRed: 0.10, green: 0.47, blue: 0.91, alpha: 0.95).cgColor
-            : NSColor(calibratedRed: 0.82, green: 0.86, blue: 0.93, alpha: 0.95).cgColor
-        layer?.shadowColor = NSColor(calibratedRed: 0.18, green: 0.25, blue: 0.36, alpha: 1).cgColor
+            : NSColor.separatorColor.cgColor
     }
 
     override init(frame frameRect: NSRect) {
@@ -72,50 +71,45 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private enum Theme {
         static let windowBackground = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.085, green: 0.095, blue: 0.12, alpha: 1.0)
-                : NSColor(calibratedRed: 0.955, green: 0.965, blue: 0.98, alpha: 1.0)
+                ? NSColor(calibratedWhite: 0.055, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.96, alpha: 1.0)
         }
         static let panel = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.12, green: 0.13, blue: 0.17, alpha: 0.96)
-                : NSColor(calibratedRed: 0.985, green: 0.988, blue: 0.995, alpha: 0.98)
+                ? NSColor(calibratedWhite: 0.105, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.985, alpha: 1.0)
         }
         static let panelStrong = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.16, green: 0.18, blue: 0.23, alpha: 0.98)
-                : NSColor(calibratedRed: 0.958, green: 0.97, blue: 0.988, alpha: 0.99)
-        }
-        static let buttonSurface = NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.19, green: 0.21, blue: 0.27, alpha: 1.0)
-                : NSColor(calibratedRed: 0.955, green: 0.968, blue: 0.986, alpha: 1.0)
-        }
-        static let buttonSurfaceStrong = NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.24, green: 0.27, blue: 0.35, alpha: 1.0)
-                : NSColor(calibratedRed: 0.92, green: 0.95, blue: 0.99, alpha: 1.0)
+                ? NSColor(calibratedWhite: 0.15, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.90, alpha: 1.0)
         }
         static let browserSurface = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.09, green: 0.10, blue: 0.13, alpha: 0.92)
-                : NSColor(calibratedRed: 0.99, green: 0.992, blue: 0.998, alpha: 0.94)
+                ? NSColor(calibratedWhite: 0.12, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.97, alpha: 1.0)
         }
         static let border = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.31, green: 0.35, blue: 0.42, alpha: 1.0)
-                : NSColor(calibratedRed: 0.82, green: 0.86, blue: 0.93, alpha: 0.9)
+                ? NSColor(calibratedWhite: 0.24, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.78, alpha: 1.0)
         }
-        static let accent = NSColor(calibratedRed: 0.08, green: 0.36, blue: 0.78, alpha: 1.0)
-        static let accentSoft = NSColor(calibratedRed: 0.55, green: 0.73, blue: 0.96, alpha: 1.0)
+        static let accent = NSColor.systemBlue
+        static let accentSoft = NSColor.systemBlue
         static let textPrimary = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.67, green: 0.80, blue: 1.0, alpha: 1.0)
-                : NSColor(calibratedRed: 0.10, green: 0.29, blue: 0.62, alpha: 1.0)
+                ? NSColor.white
+                : NSColor(calibratedWhite: 0.08, alpha: 1.0)
         }
         static let textSecondary = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(calibratedRed: 0.54, green: 0.70, blue: 0.93, alpha: 1.0)
-                : NSColor(calibratedRed: 0.27, green: 0.45, blue: 0.74, alpha: 1.0)
+                ? NSColor(calibratedWhite: 0.68, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.34, alpha: 1.0)
+        }
+        static let disabledText = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(calibratedWhite: 0.45, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.62, alpha: 1.0)
         }
     }
 
@@ -240,13 +234,17 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func installBackdrop(in contentView: NSView) {
         let visual = NSVisualEffectView(frame: contentView.bounds)
         visual.autoresizingMask = [.width, .height]
-        visual.blendingMode = .behindWindow
+        visual.blendingMode = .withinWindow
         visual.state = .active
-        visual.material = .sidebar
+        visual.material = .windowBackground
         visual.wantsLayer = true
 
         let gradient = CAGradientLayer()
         gradient.frame = visual.bounds
+        gradient.colors = [
+            resolvedCGColor(Theme.windowBackground),
+            resolvedCGColor(Theme.windowBackground)
+        ]
         gradient.startPoint = CGPoint(x: 0.1, y: 1)
         gradient.endPoint = CGPoint(x: 0.9, y: 0)
         visual.layer?.addSublayer(gradient)
@@ -258,101 +256,79 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func styleGlassCard(_ view: NSView, cornerRadius: CGFloat = 16, alpha: CGFloat = 1.0) {
         view.wantsLayer = true
-        view.layer?.cornerRadius = cornerRadius
-        view.layer?.backgroundColor = Theme.panel.withAlphaComponent(alpha).cgColor
+        view.layer?.cornerRadius = 10
+        view.layer?.backgroundColor = resolvedCGColor(Theme.panel.withAlphaComponent(alpha))
         view.layer?.borderWidth = 1
-        view.layer?.borderColor = Theme.border.cgColor
-        view.layer?.shadowColor = NSColor(calibratedRed: 0.18, green: 0.25, blue: 0.36, alpha: 1).cgColor
-        view.layer?.shadowOpacity = 0.07
-        view.layer?.shadowRadius = 14
-        view.layer?.shadowOffset = NSSize(width: 0, height: -3)
+        view.layer?.borderColor = resolvedCGColor(Theme.border)
+        view.layer?.shadowOpacity = 0
+    }
+
+    private func resolvedCGColor(_ color: NSColor) -> CGColor {
+        var cgColor = color.cgColor
+        (window?.effectiveAppearance ?? NSApp.effectiveAppearance).performAsCurrentDrawingAppearance {
+            cgColor = color.cgColor
+        }
+        return cgColor
     }
 
     private func stylePrimaryButton(_ button: NSButton) {
         button.isBordered = false
         button.wantsLayer = true
-        button.layer?.cornerRadius = 16
-        button.layer?.backgroundColor = Theme.buttonSurfaceStrong.cgColor
-        button.layer?.shadowColor = Theme.accentSoft.cgColor
-        button.layer?.shadowOpacity = 0.14
-        button.layer?.shadowRadius = 8
-        button.layer?.shadowOffset = .zero
+        button.layer?.cornerRadius = 7
+        button.layer?.backgroundColor = resolvedCGColor(Theme.panelStrong)
         button.layer?.borderWidth = 1
-        button.layer?.borderColor = Theme.border.cgColor
-        button.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
-        applyButtonTitle(button, color: Theme.textPrimary)
-    }
-
-    private func styleGhostButton(_ button: NSButton) {
-        button.isBordered = false
-        button.wantsLayer = true
-        button.layer?.cornerRadius = 14
-        button.layer?.backgroundColor = Theme.buttonSurfaceStrong.cgColor
-        button.layer?.borderWidth = 1
-        button.layer?.borderColor = Theme.border.cgColor
-        button.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
-        applyButtonTitle(button, color: Theme.textPrimary)
-    }
-
-    private func styleCompactGhostButton(_ button: NSButton) {
-        styleGhostButton(button)
-        button.layer?.cornerRadius = 12
-        button.font = NSFont(name: "Avenir Next Demi Bold", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .semibold)
-        applyButtonTitle(button, color: Theme.textPrimary)
-    }
-
-    private func applyButtonTitle(_ button: NSButton, color: NSColor) {
-        let font = button.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        button.layer?.borderColor = resolvedCGColor(Theme.border)
+        button.contentTintColor = Theme.textPrimary
+        button.font = NSFont.systemFont(ofSize: 13)
         button.attributedTitle = NSAttributedString(
             string: button.title,
             attributes: [
-                .foregroundColor: color,
-                .font: font
+                .foregroundColor: Theme.textPrimary,
+                .font: button.font ?? NSFont.systemFont(ofSize: 13)
             ]
         )
     }
 
+    private func styleGhostButton(_ button: NSButton) {
+        stylePrimaryButton(button)
+    }
+
+    private func styleCompactGhostButton(_ button: NSButton) {
+        stylePrimaryButton(button)
+        button.controlSize = .small
+        button.font = NSFont.systemFont(ofSize: 12)
+    }
+
     private func styleCheckbox(_ button: NSButton) {
-        button.setButtonType(.toggle)
+        button.setButtonType(.switch)
         button.isBordered = false
         button.imagePosition = .imageLeading
         button.imageHugsTitle = true
-        button.contentTintColor = Theme.textPrimary
-        button.image = checkboxImage(selected: false)
-        button.alternateImage = checkboxImage(selected: true)
-        applyButtonTitle(button, color: Theme.textPrimary)
+        button.contentTintColor = button.isEnabled ? Theme.accent : Theme.disabledText
+        button.image = nil
+        button.alternateImage = nil
+        button.attributedTitle = NSAttributedString(
+            string: button.title,
+            attributes: [
+                .foregroundColor: Theme.textPrimary,
+                .font: button.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            ]
+        )
     }
 
     private func stylePopUp(_ popUp: NSPopUpButton) {
+        popUp.isBordered = true
+        popUp.bezelStyle = .rounded
         popUp.contentTintColor = Theme.textPrimary
-        let font = popUp.font ?? NSFont.systemFont(ofSize: 12, weight: .medium)
         for item in popUp.itemArray {
             item.attributedTitle = NSAttributedString(
                 string: item.title,
                 attributes: [
                     .foregroundColor: Theme.textPrimary,
-                    .font: font
+                    .font: popUp.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
                 ]
             )
         }
-    }
-
-    private func checkboxImage(selected: Bool) -> NSImage? {
-        if #available(macOS 11.0, *) {
-            let name = selected ? "checkmark.square.fill" : "square"
-            let color = selected ? Theme.textPrimary : Theme.textSecondary
-            let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-            let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-                .withSymbolConfiguration(config)
-            image?.isTemplate = false
-            image?.lockFocus()
-            color.set()
-            let rect = NSRect(origin: .zero, size: image?.size ?? .zero)
-            rect.fill(using: .sourceAtop)
-            image?.unlockFocus()
-            return image
-        }
-        return nil
     }
 
     private func sectionLabel(_ text: String, frame: NSRect) -> NSTextField {
@@ -410,11 +386,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         let statusContainer = NSView(frame: NSRect(x: 526, y: 24, width: 170, height: 34))
         statusContainer.wantsLayer = true
         statusContainerView = statusContainer
-        let indicatorBox = NSBox(frame: NSRect(x: 12, y: 12, width: 8, height: 8))
-        indicatorBox.boxType = .custom
-        indicatorBox.borderWidth = 0
-        indicatorBox.cornerRadius = 4
-        indicatorBox.fillColor = .systemGray
+        let indicatorBox = NSView(frame: NSRect(x: 12, y: 12, width: 8, height: 8))
+        indicatorBox.wantsLayer = true
+        indicatorBox.layer?.cornerRadius = 4
+        indicatorBox.layer?.backgroundColor = resolvedCGColor(.systemGray)
         statusIndicator = indicatorBox
         statusContainer.addSubview(statusIndicator)
 
@@ -515,9 +490,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewContainer = DragDropContainerView(frame: NSRect(x: Layout.sideInset, y: Layout.previewY, width: Layout.contentWidth, height: 340))
         styleGlassCard(previewContainer, cornerRadius: 16, alpha: 0.98)
         previewContainer.layer?.masksToBounds = true
-        previewContainer.layer?.shadowOpacity = 0.16
-        previewContainer.layer?.shadowRadius = 14
-        previewContainer.layer?.shadowOffset = NSSize(width: 0, height: -4)
         previewContainer.canAcceptDrop = { [weak self] url in
             self?.isAcceptableDropURL(url) ?? false
         }
@@ -529,11 +501,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
         previewContainer.toolTip = "ui.pickHint".localized
 
-        let dropBox = NSBox(frame: previewContainer.bounds)
-        dropBox.boxType = .custom
-        dropBox.borderWidth = 0
-        dropBox.cornerRadius = 16
-        dropBox.fillColor = NSColor(calibratedRed: 0.92, green: 0.95, blue: 0.99, alpha: 0.95)
+        let dropBox = NSView(frame: previewContainer.bounds)
+        dropBox.wantsLayer = true
+        dropBox.layer?.cornerRadius = 10
+        dropBox.layer?.backgroundColor = resolvedCGColor(Theme.panel)
         dropZone = dropBox
 
         dropIconView = NSImageView(frame: NSRect(x: 0, y: 192, width: Layout.contentWidth, height: 48))
@@ -609,12 +580,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewBrowserChromeView.wantsLayer = true
         previewBrowserChromeView.layer?.cornerRadius = 14
         previewBrowserChromeView.layer?.borderWidth = 1
-        previewBrowserChromeView.layer?.borderColor = Theme.border.cgColor
-        previewBrowserChromeView.layer?.backgroundColor = Theme.browserSurface.cgColor
-        previewBrowserChromeView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.22).cgColor
-        previewBrowserChromeView.layer?.shadowOpacity = 0.22
-        previewBrowserChromeView.layer?.shadowRadius = 12
-        previewBrowserChromeView.layer?.shadowOffset = NSSize(width: 0, height: -2)
+        previewBrowserChromeView.layer?.borderColor = resolvedCGColor(Theme.border)
+        previewBrowserChromeView.layer?.backgroundColor = resolvedCGColor(Theme.browserSurface)
         previewBrowserChromeView.isHidden = true
 
         scrollView = NSScrollView(frame: NSRect(x: 8, y: 8, width: previewBrowserChromeView.bounds.width - 16, height: previewBrowserChromeView.bounds.height - 16))
@@ -628,11 +595,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewBrowserChromeView.addSubview(scrollView)
         previewContainer.addSubview(previewBrowserChromeView)
 
-        let overlayBox = NSBox(frame: previewContainer.bounds)
-        overlayBox.boxType = .custom
-        overlayBox.borderWidth = 0
-        overlayBox.cornerRadius = 16
-        overlayBox.fillColor = NSColor(calibratedWhite: 0.96, alpha: 0.82)
+        let overlayBox = NSView(frame: previewContainer.bounds)
+        overlayBox.wantsLayer = true
+        overlayBox.layer?.cornerRadius = 10
+        overlayBox.layer?.backgroundColor = resolvedCGColor(Theme.panel.withAlphaComponent(0.9))
         overlayBox.autoresizingMask = [.width, .height]
         overlayBox.isHidden = true
         previewLoadingOverlay = overlayBox
@@ -811,8 +777,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalField.wantsLayer = true
         intervalField.layer?.cornerRadius = 8
         intervalField.layer?.borderWidth = 1
-        intervalField.layer?.borderColor = Theme.border.cgColor
-        intervalField.backgroundColor = .white
+        intervalField.layer?.borderColor = resolvedCGColor(Theme.border)
+        intervalField.backgroundColor = .textBackgroundColor
         let formatter = NumberFormatter()
         formatter.allowsFloats = false
         formatter.minimum = 1
@@ -931,18 +897,16 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func refreshTheme() {
-        let isDark = window?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        backdropGradientLayer?.colors = isDark
-            ? [
-                NSColor(calibratedRed: 0.06, green: 0.07, blue: 0.09, alpha: 1.0).cgColor,
-                NSColor(calibratedRed: 0.12, green: 0.14, blue: 0.18, alpha: 1.0).cgColor
-            ]
-            : [
-                NSColor(calibratedRed: 0.975, green: 0.98, blue: 0.988, alpha: 1.0).cgColor,
-                NSColor(calibratedRed: 0.93, green: 0.945, blue: 0.965, alpha: 1.0).cgColor
-            ]
-        baseBackgroundView?.material = isDark ? .underWindowBackground : .sidebar
+        backdropGradientLayer?.colors = [
+            resolvedCGColor(Theme.windowBackground),
+            resolvedCGColor(Theme.windowBackground)
+        ]
+        baseBackgroundView?.material = .contentBackground
         window?.backgroundColor = Theme.windowBackground
+        if let previewContainer {
+            styleGlassCard(previewContainer, cornerRadius: 16, alpha: 0.98)
+            previewContainer.layer?.masksToBounds = true
+        }
         if let screenSelectorView {
             styleGlassCard(screenSelectorView, cornerRadius: 12, alpha: 0.94)
         }
@@ -950,17 +914,17 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             styleGlassCard(settingsView, cornerRadius: 14, alpha: 0.95)
         }
         if let headerView {
-            headerView.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.78).cgColor
+            headerView.layer?.backgroundColor = resolvedCGColor(Theme.windowBackground)
         }
-        controlsView?.layer?.backgroundColor = Theme.panel.withAlphaComponent(0.12).cgColor
+        controlsView?.layer?.backgroundColor = NSColor.clear.cgColor
         if let footerView {
-            footerView.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.78).cgColor
+            footerView.layer?.backgroundColor = resolvedCGColor(Theme.windowBackground)
         }
         if let statusContainerView {
             statusContainerView.layer?.cornerRadius = 9
-            statusContainerView.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.86).cgColor
+            statusContainerView.layer?.backgroundColor = resolvedCGColor(Theme.panelStrong.withAlphaComponent(0.86))
             statusContainerView.layer?.borderWidth = 1
-            statusContainerView.layer?.borderColor = Theme.border.cgColor
+            statusContainerView.layer?.borderColor = resolvedCGColor(Theme.border)
         }
         if let browseFolderButton {
             styleCompactGhostButton(browseFolderButton)
@@ -979,18 +943,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         stylePopUp(fitModePopUp)
         stylePopUp(appearanceModePopUp)
         stylePopUp(newScreenPolicyPopUp)
-        previewBrowserChromeView?.layer?.backgroundColor = Theme.browserSurface.cgColor
-        previewBrowserChromeView?.layer?.borderColor = Theme.border.cgColor
-        intervalField?.backgroundColor = isDark
-            ? NSColor(calibratedRed: 0.17, green: 0.19, blue: 0.24, alpha: 1.0)
-            : NSColor.white
+        previewBrowserChromeView?.layer?.backgroundColor = resolvedCGColor(Theme.browserSurface)
+        previewBrowserChromeView?.layer?.borderColor = resolvedCGColor(Theme.border)
+        intervalField?.backgroundColor = Theme.panelStrong
         intervalField?.textColor = Theme.textPrimary
         previewStageView?.layer?.backgroundColor = NSColor.black.cgColor
-        if let dropZone = dropZone as? NSBox {
-            dropZone.fillColor = Theme.panelStrong
-        }
-        previewLoadingOverlay.wantsLayer = true
-        previewLoadingOverlay.layer?.backgroundColor = Theme.panelStrong.withAlphaComponent(0.88).cgColor
+        dropZone?.layer?.backgroundColor = resolvedCGColor(Theme.panelStrong)
+        previewLoadingOverlay?.layer?.backgroundColor = resolvedCGColor(Theme.panelStrong.withAlphaComponent(0.88))
     }
 
     private func createFooter() -> NSView {
@@ -1371,11 +1330,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalStepper.isEnabled = isFolderMode && isRotationEnabled
         includeSubfoldersSwitch.state = currentIncludeSubfolders ? .on : .off
 
-        rotationSwitch.contentTintColor = isFolderMode ? Theme.accent : Theme.textSecondary.withAlphaComponent(0.55)
-        shuffleSwitch.contentTintColor = (isFolderMode && isRotationEnabled) ? Theme.accent : Theme.textSecondary.withAlphaComponent(0.55)
-        intervalPrefix.textColor = (isFolderMode && isRotationEnabled) ? Theme.textPrimary : Theme.textSecondary.withAlphaComponent(0.6)
-        intervalLabel.textColor = (isFolderMode && isRotationEnabled) ? Theme.textSecondary : Theme.textSecondary.withAlphaComponent(0.6)
-        folderCountLabel.textColor = isFolderMode ? Theme.textSecondary : Theme.textSecondary.withAlphaComponent(0.6)
+        rotationSwitch.contentTintColor = isFolderMode ? Theme.accent : Theme.disabledText
+        shuffleSwitch.contentTintColor = (isFolderMode && isRotationEnabled) ? Theme.accent : Theme.disabledText
+        styleCheckbox(rotationSwitch)
+        styleCheckbox(shuffleSwitch)
+        styleCheckbox(includeSubfoldersSwitch)
+        intervalPrefix.textColor = (isFolderMode && isRotationEnabled) ? Theme.textPrimary : Theme.disabledText
+        intervalLabel.textColor = (isFolderMode && isRotationEnabled) ? Theme.textSecondary : Theme.disabledText
+        folderCountLabel.textColor = isFolderMode ? Theme.textSecondary : Theme.disabledText
         if isFolderMode {
             let recursive = currentIncludeSubfolders ? "ui.recursiveEnabled".localized : "ui.recursiveDisabled".localized
             let playlistCount = wallpaperManager.playlist(for: selectedScreenID).count
@@ -1425,19 +1387,19 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             }
 
             let isAutoPaused = SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally && !isCurrentlyPaused
-            if let indicator = statusIndicator as? NSBox {
+            if let indicator = statusIndicator {
                 if isCurrentlyPaused {
-                    indicator.fillColor = .systemYellow
+                    indicator.layer?.backgroundColor = resolvedCGColor(.systemYellow)
                     statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
                     statusLabel.textColor = Theme.textPrimary
                     previewPlayer?.pause()
                 } else if isAutoPaused {
-                    indicator.fillColor = .systemOrange
+                    indicator.layer?.backgroundColor = resolvedCGColor(.systemOrange)
                     statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
                     statusLabel.textColor = Theme.textPrimary
                     previewPlayer?.pause()
                 } else {
-                    indicator.fillColor = .systemGreen
+                    indicator.layer?.backgroundColor = resolvedCGColor(.systemGreen)
                     statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
                     statusLabel.textColor = Theme.textPrimary
                     previewPlayer?.play()
@@ -1454,8 +1416,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             fileNameLabel.stringValue = "ui.noWallpaper".localized
             fileTypeLabel.stringValue = ""
 
-            if let indicator = statusIndicator as? NSBox {
-                indicator.fillColor = Theme.textSecondary.withAlphaComponent(0.45)
+            if let indicator = statusIndicator {
+                indicator.layer?.backgroundColor = resolvedCGColor(Theme.textSecondary.withAlphaComponent(0.45))
             }
             statusLabel.stringValue = "ui.status".localized("ui.notSet".localized)
             statusLabel.textColor = Theme.textSecondary
