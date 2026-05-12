@@ -572,7 +572,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         // Preview — fills remaining space, gets most of the extra height
         let previewY = y
-        let selectorY = h - gh - selectorH
+        let headerBottom = h - headerH
+        let selectorY = headerBottom - gh - selectorH
         let previewH = max(selectorY - gp - previewY, minPreviewH)
 
         // Constrain preview aspect ratio so it doesn't turn into a thin strip
@@ -591,7 +592,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         screenSelectorView?.frame = NSRect(x: Layout.sideInset, y: y, width: cw, height: selectorH)
         y += selectorH + gh
 
-        // Header: pin to top
+        // Header: pin to top (y is the header bottom after accumulation)
         headerView?.frame = NSRect(x: 0, y: y, width: w, height: headerH)
         if let hdr = headerView, let sep = hdr.subviews.first(where: { $0 is NSBox }) {
             sep.frame = NSRect(x: Layout.sideInset, y: 0, width: cw, height: 1)
