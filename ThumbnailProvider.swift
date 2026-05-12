@@ -51,7 +51,8 @@ final class ThumbnailProvider {
                 return
             }
 
-            let image = NSImage(cgImage: cgImage, size: size)
+            let imageSize = NSSize(width: cgImage.width, height: cgImage.height)
+            let image = NSImage(cgImage: cgImage, size: imageSize)
             self.cache.setObject(image, forKey: cacheKey)
             PerformanceMonitor.shared.end(token, extra: "result=ok path=\(url.lastPathComponent)")
             DispatchQueue.main.async { completion(image) }
@@ -79,7 +80,8 @@ final class ThumbnailProvider {
                     return
                 }
 
-                let image = NSImage(cgImage: cgImage, size: size)
+                let imageSize = NSSize(width: cgImage.width, height: cgImage.height)
+                let image = NSImage(cgImage: cgImage, size: imageSize)
                 self.cache.setObject(image, forKey: cacheKey)
                 PerformanceMonitor.shared.end(token, extra: "result=ok path=\(url.lastPathComponent)")
                 DispatchQueue.main.async { completion(image) }

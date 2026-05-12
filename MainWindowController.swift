@@ -188,7 +188,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         self.selectedScreen = NSScreen.screens.first(where: { $0.isBuiltIn }) ?? NSScreen.main
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: Layout.windowWidth, height: Layout.windowHeight),
-            styleMask: [.titled, .closable, .miniaturizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -197,6 +197,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         window.center()
         window.isReleasedWhenClosed = false
         window.backgroundColor = Theme.windowBackground
+        // Minimum size that prevents content overlap / compression:
+        // bottom group (304) + top group (160) + preview-min (100) + gaps = ~620
+        window.contentMinSize = NSSize(width: 540, height: 620)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         setupUI()
@@ -226,9 +229,11 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         NotificationCenter.default.addObserver(self, selector: #selector(rotationHappened), name: WallpaperManager.didRotateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(statusChanged), name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screenListChanged), name: WallpaperManager.screenListDidChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowDidResize), name: NSWindow.didResizeNotification, object: window)
 
         applyAppearanceMode()
         updateUI()
+        layoutContent()
     }
 
     private func installBackdrop(in contentView: NSView) {
@@ -484,6 +489,128 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         guard let screen = selectedScreen else { return }
         wallpaperManager.setSynced(sender.state == .on, for: screen)
         updateUI()
+    }
+
+    // MARK: - Window resize
+
+    @objc private func windowDidResize() {
+        layoutContent()
+        applyPreviewLayout(isFolder: currentPreviewIsFolder ?? false, browserVisible: currentPreviewBrowserVisible ?? false)
+    }
+
+    private func layoutContent() {
+        guard let contentView = window?.contentView else { return }
+        let w = contentView.bounds.width
+        let h = contentView.bounds.height
+        let cw = w - Layout.sideInset * 2
+
+        // ── Static element heights ──
+        let headerH:    CGFloat = 82
+        let selectorH:  CGFloat = 62
+        let infoH:      CGFloat = 44
+        let controlsH:  CGFloat = 42
+        let settingsH:  CGFloat = 158
+        let footerH:    CGFloat = 28
+
+        // ── Default gaps (measured from the original 860-pt design) ──
+        let gFooterSettings:     CGFloat = 26   // footer top  → settings bottom
+        let gSettingsControls:   CGFloat = 18   // settings top → controls bottom
+        let gControlsInfo:       CGFloat = 14   // controls top  → info bottom
+        let gInfoPreview:        CGFloat = 14   // info top      → preview bottom
+        let gPreviewSelector:    CGFloat = 16   // preview top   → selector bottom
+        let gSelectorHeader:     CGFloat = 16   // selector top  → header bottom
+
+        let totalFixed = headerH + selectorH + infoH + controlsH + settingsH + footerH
+        let totalGaps  = gFooterSettings + gSettingsControls + gControlsInfo
+                       + gInfoPreview + gPreviewSelector + gSelectorHeader
+        let minPreviewH: CGFloat = 120
+        let designH = totalFixed + totalGaps + 340  // 340 = default preview height
+
+        // Extra height beyond the design height
+        let extra = max(h - designH, 0)
+        // Distribute extra: preview absorbs the rest, 30 % to gaps, 20 % to top
+        let gapExtra = extra * 0.30
+        let topExtra = extra * 0.20
+
+        // ── Scale each gap proportionally ──
+        let scaleGap = totalGaps > 0 ? gapExtra / totalGaps : 0
+        let gf = gFooterSettings   + gFooterSettings   * scaleGap
+        let gs = gSettingsControls + gSettingsControls * scaleGap
+        let gc = gControlsInfo     + gControlsInfo     * scaleGap
+        let gi = gInfoPreview      + gInfoPreview      * scaleGap
+        let gp = gPreviewSelector  + gPreviewSelector  * scaleGap
+        let gh = gSelectorHeader   + gSelectorHeader   * scaleGap + topExtra
+
+        // ── Lay out bottom → top ──
+        var y: CGFloat = 0
+
+        // Footer
+        footerView?.frame = NSRect(x: 0, y: y, width: w, height: footerH)
+        if let f = footerView {
+            if let sep = f.subviews.first(where: { $0 is NSBox }) {
+                sep.frame = NSRect(x: Layout.sideInset, y: footerH - 1, width: cw, height: 1)
+            }
+            if let author = f.subviews.last(where: { $0 is NSTextField }) {
+                author.frame = NSRect(x: Layout.sideInset, y: 6, width: cw, height: 16)
+            }
+        }
+        y += footerH + gf
+
+        // Settings
+        settingsView?.frame = NSRect(x: Layout.sideInset, y: y, width: cw, height: settingsH)
+        y += settingsH + gs
+
+        // Controls
+        controlsView?.frame = NSRect(x: Layout.sideInset, y: y, width: cw, height: controlsH)
+        y += controlsH + gc
+
+        // Info bar
+        if let bar = fileNameLabel?.superview {
+            bar.frame = NSRect(x: Layout.sideInset, y: y, width: cw, height: infoH)
+        }
+        y += infoH + gi
+
+        // Preview — fills remaining space, gets most of the extra height
+        let previewY = y
+        let selectorY = h - gh - selectorH
+        let previewH = max(selectorY - gp - previewY, minPreviewH)
+
+        // Constrain preview aspect ratio so it doesn't turn into a thin strip
+        // when the window is very wide (e.g. fullscreen).
+        let maxPreviewAspect: CGFloat = 2.4
+        var previewW = cw
+        var previewX = Layout.sideInset
+        if previewH > 0 && previewW / previewH > maxPreviewAspect {
+            previewW = previewH * maxPreviewAspect
+            previewX = (w - previewW) / 2
+        }
+        previewContainer?.frame = NSRect(x: previewX, y: previewY, width: previewW, height: previewH)
+        y = previewY + previewH + gp
+
+        // Selector
+        screenSelectorView?.frame = NSRect(x: Layout.sideInset, y: y, width: cw, height: selectorH)
+        y += selectorH + gh
+
+        // Header: pin to top
+        headerView?.frame = NSRect(x: 0, y: y, width: w, height: headerH)
+        if let hdr = headerView, let sep = hdr.subviews.first(where: { $0 is NSBox }) {
+            sep.frame = NSRect(x: Layout.sideInset, y: 0, width: cw, height: 1)
+        }
+        if let sc = statusContainerView {
+            sc.frame.origin.x = w - sc.frame.width - Layout.sideInset
+        }
+
+        // Backdrop
+        backdropGradientLayer?.frame = contentView.bounds
+
+        // Preview internals
+        if let pc = previewContainer {
+            previewDisplayFrame = pc.bounds
+            previewStageView?.frame = previewDisplayFrame
+            previewPlayerLayer?.frame = previewStageView?.bounds ?? .zero
+            previewImageView?.frame = previewStageView?.bounds ?? .zero
+            previewLoadingOverlay?.frame = pc.bounds
+        }
     }
 
     private func createPreviewContainer() -> NSView {
@@ -1529,6 +1656,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func applyPreviewLayout(isFolder: Bool, browserVisible: Bool) {
+        currentPreviewIsFolder = isFolder
+        currentPreviewBrowserVisible = browserVisible
         previewDisplayFrame = previewContainer.bounds
         previewStageView.frame = previewDisplayFrame
         previewPlayerLayer.frame = previewStageView.bounds

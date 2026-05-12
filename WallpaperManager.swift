@@ -348,7 +348,7 @@ class WallpaperManager {
             return
         }
 
-        guard let mediaURL = currentFiles[id] ?? urlForScreen(screen) else { return }
+        guard let mediaURL = currentFiles[id] else { return }
         applySystemDesktopWallpaper(for: screen, screenID: id, mediaURL: mediaURL, playbackTime: nil)
     }
 
@@ -359,24 +359,27 @@ class WallpaperManager {
     }
 
     private func applySystemDesktopWallpaper(for screen: NSScreen, screenID: String, mediaURL: URL, playbackTime: CMTime?) {
+        let fitMode = SettingsManager.shared.screenConfig(for: screenID).wallpaperFit
         switch MediaType.detect(mediaURL) {
         case .image, .gif:
             clearTransientDesktopSnapshot(for: screenID)
-            applyDesktopImage(at: mediaURL, for: screen, screenID: screenID)
+            if fitMode == .fit, let compositedURL = self.compositedImageSnapshot(from: mediaURL, for: screen, screenID: screenID) {
+                replaceTransientDesktopSnapshot(for: screenID, with: compositedURL)
+                applyDesktopImage(at: compositedURL, for: screen, screenID: screenID)
+            } else {
+                applyDesktopImage(at: mediaURL, for: screen, screenID: screenID)
+            }
         case .video:
             let outputURL = makeTransientSnapshotURL(for: screenID)
 
             lockScreenCaptureQueue.async { [weak self] in
                 guard let self else { return }
-                // Re-read live screen geometry at execution time rather than using the
-                // value captured at dispatch time — prevents stale-geometry snapshots
-                // when the display configuration changes between dispatch and execution (Bug 4 fix).
                 let liveScreen = NSScreen.screens.first(where: { SettingsManager.screenIdentifier($0) == screenID }) ?? screen
                 let targetSize = CGSize(
                     width: max(liveScreen.frame.width * liveScreen.backingScaleFactor, 1920),
                     height: max(liveScreen.frame.height * liveScreen.backingScaleFactor, 1080)
                 )
-                guard let snapshotURL = self.createDesktopSnapshot(from: mediaURL, at: playbackTime, outputURL: outputURL, maxSize: targetSize) else {
+                guard let snapshotURL = self.createDesktopSnapshot(from: mediaURL, at: playbackTime, outputURL: outputURL, maxSize: targetSize, fitMode: fitMode) else {
                     return
                 }
 
@@ -406,7 +409,7 @@ class WallpaperManager {
         }
     }
 
-    private func createDesktopSnapshot(from mediaURL: URL, at playbackTime: CMTime?, outputURL: URL, maxSize: CGSize) -> URL? {
+    private func createDesktopSnapshot(from mediaURL: URL, at playbackTime: CMTime?, outputURL: URL, maxSize: CGSize, fitMode: WallpaperFitMode) -> URL? {
         let asset = AVURLAsset(url: mediaURL)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
@@ -415,12 +418,106 @@ class WallpaperManager {
         generator.requestedTimeToleranceAfter = .zero
 
         let targetTime = normalizedSnapshotTime(playbackTime)
-        if let cgImage = copyImage(using: generator, at: targetTime) ?? copyImage(using: generator, at: .zero) {
-            return writeDesktopSnapshot(cgImage, to: outputURL)
+        guard let frameCGImage = copyImage(using: generator, at: targetTime) ?? copyImage(using: generator, at: .zero) else {
+            print("Failed to create current-frame snapshot from \(mediaURL.lastPathComponent)")
+            return nil
         }
 
-        print("Failed to create current-frame snapshot from \(mediaURL.lastPathComponent)")
-        return nil
+        let frameSize = NSSize(width: frameCGImage.width, height: frameCGImage.height)
+        let canvasSize = maxSize
+
+        // Only composite when fit mode produces letterboxing
+        guard fitMode == .fit else {
+            // For fill/stretch modes there are no letterbox gaps;
+            // the raw frame is sufficient.
+            return writeDesktopSnapshot(frameCGImage, to: outputURL)
+        }
+
+        // Composite the video frame onto a black canvas matching the screen
+        // dimensions.  This bakes the background into the image so the lock
+        // screen shows black instead of the system blue tint.
+        guard let compositedCGImage = compositeImage(
+            frameCGImage, size: frameSize,
+            ontoCanvas: canvasSize,
+            fitMode: fitMode
+        ) else {
+            return writeDesktopSnapshot(frameCGImage, to: outputURL)
+        }
+
+        return writeDesktopSnapshot(compositedCGImage, to: outputURL)
+    }
+
+    /// Generates a screen-sized composited snapshot for images and GIFs when
+    /// the user has selected Fit mode — prevents the lock screen from showing
+    /// blue bars in the letterbox areas.
+    private func compositedImageSnapshot(from mediaURL: URL, for screen: NSScreen, screenID: String) -> URL? {
+        guard let image = NSImage(contentsOf: mediaURL) else { return nil }
+        let imageReps = image.representations
+        let pixelSize: NSSize
+        if let rep = imageReps.first {
+            pixelSize = NSSize(width: rep.pixelsWide, height: rep.pixelsHigh)
+        } else {
+            pixelSize = image.size
+        }
+        guard pixelSize.width > 0, pixelSize.height > 0 else { return nil }
+
+        let canvasSize = CGSize(
+            width: max(screen.frame.width * screen.backingScaleFactor, 1920),
+            height: max(screen.frame.height * screen.backingScaleFactor, 1080)
+        )
+
+        let canvasImage = NSImage(size: NSSize(width: canvasSize.width, height: canvasSize.height))
+        canvasImage.lockFocus()
+        NSColor.black.setFill()
+        NSRect(origin: .zero, size: canvasImage.size).fill()
+
+        let drawRect = fitDrawRect(imageSize: pixelSize, canvasSize: canvasSize, fitMode: .fit)
+        image.draw(in: drawRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+        canvasImage.unlockFocus()
+
+        guard let cgImage = canvasImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let outputURL = makeTransientSnapshotURL(for: screenID)
+        return writeDesktopSnapshot(cgImage, to: outputURL)
+    }
+
+    /// Draws a CGImage onto a black canvas sized to `canvasSize` and returns the
+    /// composited result.
+    private func compositeImage(_ cgImage: CGImage, size imageSize: NSSize, ontoCanvas canvasSize: CGSize, fitMode: WallpaperFitMode) -> CGImage? {
+        let nsImage = NSImage(size: NSSize(width: canvasSize.width, height: canvasSize.height))
+        nsImage.lockFocus()
+        NSColor.black.setFill()
+        NSRect(origin: .zero, size: nsImage.size).fill()
+
+        let drawRect = fitDrawRect(imageSize: imageSize, canvasSize: canvasSize, fitMode: fitMode)
+        NSImage(cgImage: cgImage, size: imageSize).draw(in: drawRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+        nsImage.unlockFocus()
+
+        return nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    }
+
+    /// Returns the draw rect that positions an image of `imageSize` onto a
+    /// canvas of `canvasSize` according to the given fit mode.
+    private func fitDrawRect(imageSize: NSSize, canvasSize: CGSize, fitMode: WallpaperFitMode) -> NSRect {
+        let cw = canvasSize.width
+        let ch = canvasSize.height
+        let iw = imageSize.width
+        let ih = imageSize.height
+        guard iw > 0, ih > 0 else { return NSRect(origin: .zero, size: canvasSize) }
+
+        switch fitMode {
+        case .fill:
+            let scale = max(cw / iw, ch / ih)
+            let w = iw * scale
+            let h = ih * scale
+            return NSRect(x: (cw - w) / 2, y: (ch - h) / 2, width: w, height: h)
+        case .fit:
+            let scale = min(cw / iw, ch / ih)
+            let w = iw * scale
+            let h = ih * scale
+            return NSRect(x: (cw - w) / 2, y: (ch - h) / 2, width: w, height: h)
+        case .stretch:
+            return NSRect(x: 0, y: 0, width: cw, height: ch)
+        }
     }
 
     private func normalizedSnapshotTime(_ playbackTime: CMTime?) -> CMTime {
