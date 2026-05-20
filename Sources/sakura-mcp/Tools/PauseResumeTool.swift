@@ -34,6 +34,8 @@ enum PauseResumeTool {
                 throw MCPToolError(message: "Invalid action: '\(action)'. Use 'pause', 'resume', or 'toggle'.")
             }
 
+            IPCSync.notifyStateChanged(field: "paused")
+
             return .object([
                 "paused": .bool(wallpaperManager.isPaused)
             ])

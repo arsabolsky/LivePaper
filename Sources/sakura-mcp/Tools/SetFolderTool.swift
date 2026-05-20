@@ -81,6 +81,8 @@ enum SetFolderTool {
 
             let fileCount = (try? PlaylistBuilder.collectMediaFiles(in: folderURL, includeSubfolders: includeSub).count) ?? 0
 
+            IPCSync.notifyStateChanged(screenID: targetID, field: "folder")
+
             return .object([
                 "success": .bool(true),
                 "folder_path": .string(folderPath),

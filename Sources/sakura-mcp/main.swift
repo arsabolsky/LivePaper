@@ -12,6 +12,12 @@ wallpaperManager.restoreAllScreens()
 
 // Start MCP stdio server on stdin/stdout
 let server = MCPServer(wallpaperManager: wallpaperManager)
+
+// Observe state changes from GUI app (no-op for now; UserDefaults is source of truth)
+IPCSync.observeStateChanges { userInfo in
+    // GUI app made a change — state already synced via shared UserDefaults
+}
+
 server.run()
 
 // Keep run loop alive while MCP server processes messages

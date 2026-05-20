@@ -32,6 +32,8 @@ enum StopWallpaperTool {
                 stopped = screens.map { SettingsManager.screenIdentifier($0) }
             }
 
+            IPCSync.notifyStateChanged(screenID: targetID, field: "stopped")
+
             return .object([
                 "success": .bool(true),
                 "stopped_screens": .array(stopped.map { .string($0) })

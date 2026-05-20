@@ -92,6 +92,8 @@ enum UpdateSettingsTool {
                 }
             }
 
+            IPCSync.notifyStateChanged(screenID: targetID, field: "settings")
+
             return .object([
                 "success": .bool(true),
                 "updated_fields": .array(updatedFields.map { .string($0) })

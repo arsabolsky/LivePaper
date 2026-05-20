@@ -37,6 +37,8 @@ enum NextWallpaperTool {
                 }
             }
 
+            IPCSync.notifyStateChanged(screenID: targetID, field: "next")
+
             return .object([
                 "success": .bool(true),
                 "results": .array(results.map { .object($0) })

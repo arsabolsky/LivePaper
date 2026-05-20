@@ -53,6 +53,8 @@ enum SetWallpaperTool {
                 }
             }
 
+            IPCSync.notifyStateChanged(screenID: targetID, field: "wallpaper")
+
             return .object([
                 "success": .bool(true),
                 "file_path": .string(filePath)
