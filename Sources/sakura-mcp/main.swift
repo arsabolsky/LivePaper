@@ -10,7 +10,8 @@ var wallpaperManager: WallpaperManager?
 if hasGUI {
     NSApplication.shared.setActivationPolicy(.accessory)
     wallpaperManager = WallpaperManager()
-    wallpaperManager?.restoreAllScreens()
+    // Don't restore old state — MCP server is stateless.
+    // User explicitly sets wallpapers via tools.
 }
 
 let server = MCPServer(wallpaperManager: wallpaperManager)
