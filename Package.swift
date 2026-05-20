@@ -7,7 +7,8 @@ let package = Package(
         .macOS(.v12)
     ],
     products: [
-        .library(name: "SakuraWallpaperCore", targets: ["SakuraWallpaperCore"])
+        .library(name: "SakuraWallpaperCore", targets: ["SakuraWallpaperCore"]),
+        .executable(name: "sakura-mcp", targets: ["sakura-mcp"])
     ],
     targets: [
         .target(
@@ -21,12 +22,6 @@ let package = Package(
                 "Tests",
                 "AppDelegate.swift",
                 "MainWindowController.swift",
-                "ScreenPlayer.swift",
-                "WallpaperManager.swift",
-                "ThumbnailItem.swift",
-                "ThumbnailProvider.swift",
-                "Localization.swift",
-                "PerformanceMonitor.swift",
                 "AboutWindowController.swift",
                 "main.swift",
                 "AppIcon.icns",
@@ -36,7 +31,9 @@ let package = Package(
                 "LICENSE",
                 "build.sh",
                 "reset.sh",
-                "SakuraWallpaper.dmg"
+                "SakuraWallpaper.dmg",
+                "SakuraWallpaper.entitlements",
+                "Sources"
             ],
             sources: [
                 "Screen_Config.swift",
@@ -44,12 +41,27 @@ let package = Package(
                 "WallpaperBehavior.swift",
                 "MediaType.swift",
                 "PlaylistBuilder.swift",
-                "AsyncWorkLimiter.swift"
+                "AsyncWorkLimiter.swift",
+                "Localization.swift",
+                "PerformanceMonitor.swift",
+                "ScreenPlayer.swift",
+                "WallpaperManager.swift",
+                "ThumbnailItem.swift",
+                "ThumbnailProvider.swift"
             ],
             linkerSettings: [
                 .linkedFramework("Cocoa"),
-                .linkedFramework("ServiceManagement")
+                .linkedFramework("AVKit"),
+                .linkedFramework("AVFoundation"),
+                .linkedFramework("ServiceManagement"),
+                .linkedFramework("ImageIO"),
+                .linkedFramework("IOKit")
             ]
+        ),
+        .executableTarget(
+            name: "sakura-mcp",
+            dependencies: ["SakuraWallpaperCore"],
+            path: "Sources/sakura-mcp"
         ),
         .testTarget(
             name: "SakuraWallpaperCoreTests",
