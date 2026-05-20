@@ -1,10 +1,24 @@
+import Cocoa
 import SakuraWallpaperCore
 
-// Start MCP stdio server — works in both GUI (Claude Desktop) and CLI contexts.
-// WallpaperManager is nil when no window server; tools report "unavailable".
-let server = MCPServer(wallpaperManager: nil)
+// Detect GUI session: NSScreen.screens returns empty when no window server (SSH/CI).
+// When launched from terminal within a GUI session or from Claude Desktop, it works.
+// Use NSApplication.shared instead of NSApp — the latter crashes in SPM-built binaries.
+let hasGUI = !NSScreen.screens.isEmpty
 
-// Observe state changes from the GUI app
+var wallpaperManager: WallpaperManager?
+if hasGUI {
+    NSApplication.shared.setActivationPolicy(.accessory)
+    wallpaperManager = WallpaperManager()
+    wallpaperManager?.restoreAllScreens()
+}
+
+let server = MCPServer(wallpaperManager: wallpaperManager)
+
 IPCSync.observeStateChanges { _ in }
 
 server.run()
+
+if hasGUI {
+    RunLoop.main.run()
+}
