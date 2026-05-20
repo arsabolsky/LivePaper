@@ -27,6 +27,10 @@ final class MCPServer {
             }
             handle(message)
         }
+        // stdin closed — keep process alive so ScreenPlayer windows persist.
+        // In Claude Desktop, stdin stays open indefinitely.
+        // From terminal pipes, this keeps the wallpaper visible after commands finish.
+        RunLoop.main.run()
     }
 
     private func handle(_ message: JSONRPCMessage) {

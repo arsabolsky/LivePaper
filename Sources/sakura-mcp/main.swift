@@ -18,8 +18,6 @@ let server = MCPServer(wallpaperManager: wallpaperManager)
 
 IPCSync.observeStateChanges { _ in }
 
+// server.run() blocks until stdin closes, then enters RunLoop to keep
+// ScreenPlayer windows alive (wallpaper persists after commands finish).
 server.run()
-
-if hasGUI {
-    RunLoop.main.run()
-}
