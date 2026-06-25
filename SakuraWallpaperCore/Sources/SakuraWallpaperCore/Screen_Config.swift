@@ -1,3 +1,5 @@
+// MARK: - [Phase 0] Xcode-free migration — now lives in SakuraWallpaperCore/Sources/SakuraWallpaperCore/
+// Shared between the app target and the extension target via the SakuraWallpaperCore SPM library.
 import Foundation
 
 // MARK: - Screen_Config

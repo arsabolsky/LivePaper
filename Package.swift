@@ -1,10 +1,16 @@
 // swift-tools-version: 5.9
+// MARK: - [Phase 0] Updated paths after directory reorganisation.
+// Core logic lives in SakuraWallpaperCore/ and is compiled into both the app and the extension.
+// Platform bumped to macOS 26 (Tahoe) — the Phosphene architecture requires WallpaperExtensionKit
+// which is only available on Tahoe and later.
 import PackageDescription
 
 let package = Package(
     name: "SakuraWallpaperCore",
     platforms: [
-        .macOS(.v12)
+        // macOS 26 (Tahoe) is required for WallpaperExtensionKit.
+        // Using string literal because .v26 isn't in swift-tools-version 5.9's enum yet.
+        .macOS("26.0")
     ],
     products: [
         .library(name: "SakuraWallpaperCore", targets: ["SakuraWallpaperCore"])
@@ -12,30 +18,7 @@ let package = Package(
     targets: [
         .target(
             name: "SakuraWallpaperCore",
-            path: ".",
-            exclude: [
-                "Resources",
-                "img",
-                "build",
-                "docs",
-                "Tests",
-                "AppDelegate.swift",
-                "MainWindowController.swift",
-                "ScreenPlayer.swift",
-                "WallpaperManager.swift",
-                "ThumbnailItem.swift",
-                "ThumbnailProvider.swift",
-                "Localization.swift",
-                "PerformanceMonitor.swift",
-                "AboutWindowController.swift",
-                "main.swift",
-                "AppIcon.icns",
-                "bg.jpg",
-                "README.md",
-                "README_CN.md",
-                "LICENSE",
-                "build.sh"
-            ],
+            path: "SakuraWallpaperCore/Sources/SakuraWallpaperCore",
             sources: [
                 "Screen_Config.swift",
                 "SettingsManager.swift",
