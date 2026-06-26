@@ -17,6 +17,26 @@ BUNDLE_ID="com.sakura.wallpaper"
 EXT_BUNDLE_ID="com.sakura.wallpaper.extension"
 
 # ---------------------------------------------------------------------------
+# Code-signing identity.
+# The macOS wallpaper picker uses library validation and will NOT load an
+# ad-hoc-signed extension — it must be signed with a real Apple-issued
+# "Apple Development" identity (free personal-team certs work for local runs).
+# Auto-detect the first valid Apple Development identity; fall back to ad-hoc
+# with a loud warning (ad-hoc builds register but never appear in the picker).
+# Override explicitly with:  SIGN_ID="<hash or name>" ./build.sh
+# ---------------------------------------------------------------------------
+SIGN_ID="${SIGN_ID:-$(security find-identity -v -p codesigning 2>/dev/null \
+    | grep "Apple Development" | head -1 | awk '{print $2}')}"
+if [ -z "$SIGN_ID" ]; then
+    SIGN_ID="-"
+    echo "WARNING: no 'Apple Development' identity found — signing ad-hoc."
+    echo "         The extension will register but NOT appear in System Settings → Wallpaper."
+    echo "         Add a free identity: Xcode → Settings → Accounts → Manage Certificates → + → Apple Development"
+else
+    echo "Signing with identity: $SIGN_ID"
+fi
+
+# ---------------------------------------------------------------------------
 # Core source files — compiled into both the app and (later) the extension.
 # ---------------------------------------------------------------------------
 CORE_SRCS=(
@@ -183,7 +203,7 @@ EXTPLIST
     # The extension must run sandboxed; the app does not.
     # Signed FIRST (inside-out): the app signature below seals this .appex,
     # so the extension must already be signed before the app is signed.
-    codesign --force --sign - \
+    codesign --force --sign "$SIGN_ID" \
         --entitlements Extension/SakuraWallpaperExtension.entitlements \
         "$EXT_DIR"
 
@@ -200,7 +220,7 @@ fi
 # genuine "Apple Development" identity; ad-hoc may still be rejected for the full
 # render lifecycle. If so, build via Xcode with a signed-in Apple ID team instead.
 # ---------------------------------------------------------------------------
-codesign --force --sign - \
+codesign --force --sign "$SIGN_ID" \
     --entitlements App/SakuraWallpaper.entitlements \
     "$APP_DIR"
 
