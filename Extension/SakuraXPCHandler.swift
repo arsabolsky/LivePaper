@@ -419,10 +419,20 @@ final class SakuraXPCHandler: NSObject, WallpaperExtensionXPCProtocol {
 
     func provideSettingsViewModels(withContentTypes _: Any?,
                                    reply: @escaping @Sendable (Any?, (any Error)?) -> Void) {
-        // Minimal settings UI: file picker + rotation interval.
-        // Phase 7 will add full SwiftUI controls here when the settings panel is built.
-        extensionLog("provideSettingsViewModels(stub)")
-        reply(nil, nil)
+        // THIS is what populates the System Settings wallpaper picker. Build a real
+        // WallpaperSettingsViewModelsXPC with one SettingsItem per library video (see
+        // SettingsProvider.swift). Never return nil — fall back to empty groups so the
+        // picker doesn't treat us as broken.
+        extensionLog("=== PROVIDE SETTINGS VIEW MODELS ===")
+        Task {
+            if let result = await buildSettingsViewModelsXPC() {
+                extensionLog("  Returning populated settings view models")
+                reply(result, nil)
+            } else {
+                extensionLog("  Build failed — returning empty groups")
+                reply(makeEmptyGroupsResponse(), nil)
+            }
+        }
     }
 
     // MARK: - selectedChoicesDidChange
