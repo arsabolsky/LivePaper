@@ -8,5 +8,9 @@
          across launches without showing a file picker every time. -->
     <key>com.apple.security.files.bookmarks.app-scope</key>
     <true/>
+    <!-- Development build marker for Apple Development (personal-team) signing.
+         Matches Phosphene's Xcode-built app entitlements. -->
+    <key>com.apple.security.get-task-allow</key>
+    <true/>
 </dict>
 </plist>
