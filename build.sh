@@ -24,6 +24,10 @@ CORE_SRCS=(
     SakuraWallpaperCore/Sources/SakuraWallpaperCore/SettingsManager.swift
     SakuraWallpaperCore/Sources/SakuraWallpaperCore/MediaType.swift
     SakuraWallpaperCore/Sources/SakuraWallpaperCore/PlaylistBuilder.swift
+    # Phase 3: shared path safety, variant type, and prefs model
+    SakuraWallpaperCore/Sources/SakuraWallpaperCore/PathSafety.swift
+    SakuraWallpaperCore/Sources/SakuraWallpaperCore/SakuraVariant.swift
+    SakuraWallpaperCore/Sources/SakuraWallpaperCore/SakuraPrefsModel.swift
 )
 
 # ---------------------------------------------------------------------------
@@ -40,6 +44,10 @@ APP_SRCS=(
     App/AboutWindowController.swift
     App/AppDelegate.swift
     App/main.swift
+    # Phase 3: IPC services
+    App/SecurityScopedResourceManager.swift
+    App/MediaDeploymentService.swift
+    App/SakuraPrefsWriter.swift
 )
 
 # ---------------------------------------------------------------------------

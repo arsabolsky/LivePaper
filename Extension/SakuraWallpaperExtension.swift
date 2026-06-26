@@ -34,8 +34,10 @@ final class SakuraWallpaperExtension: NSObject, AppExtension {
             // See swizzleSnapshotEncodeIfNeeded() for a full explanation.
             swizzleSnapshotEncodeIfNeeded()
 
-            // TODO(Phase 3): SakuraLibrary.shared.scan()
-            // TODO(Phase 3): observePrefsChanges()
+            // Scan the video library so entries are available before the first acquire().
+            SakuraLibrary.shared.scan()
+            // Start observing prefs changes so rotation config reloads when the app writes.
+            SakuraPrefsProvider.shared.observeChanges()
 
             observeDisplaySleepWake()
             observeScreenLockState()
@@ -196,13 +198,15 @@ final class SakuraWallpaperExtension: NSObject, AppExtension {
         let state = SakuraExtensionState.shared
         let power = SakuraPowerMonitor.shared.currentState
 
+        let prefs = SakuraPrefsProvider.shared
+
         let policy = SakuraPlaybackPolicy.compute(
             presentationMode: state.presentationMode,
             activityState: state.activityState,
-            userPaused: false,                  // TODO(Phase 3): read from SakuraPrefs
-            alwaysPauseDesktop: false,          // TODO(Phase 3): read from SakuraPrefs
-            pauseWhenOccluded: false,           // TODO(Phase 3): read from SakuraPrefs
-            desktopOccluded: false,             // TODO(Phase 3): read from SakuraPrefs
+            userPaused: prefs.userPaused,
+            alwaysPauseDesktop: prefs.alwaysPauseDesktop,
+            pauseWhenOccluded: prefs.pauseWhenOccluded,
+            desktopOccluded: prefs.desktopOccluded,
             powerState: power
         )
 
@@ -220,8 +224,10 @@ final class SakuraWallpaperExtension: NSObject, AppExtension {
             center,
             observer,
             { _, _, _, _, _ in
-                // TODO(Phase 3): SakuraLibrary.shared.scan()
-                extensionLog("[Extension] libraryChanged notification received — Phase 3 will re-scan")
+                // Re-scan the library on the Darwin notification queue.
+                // scan() is O(directory listing) and safe to run on any queue.
+                SakuraLibrary.shared.scan()
+                extensionLog("[Extension] libraryChanged — library re-scanned")
             },
             SakuraNotification.libraryChanged as CFString,
             nil,
