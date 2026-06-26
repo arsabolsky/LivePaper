@@ -11,7 +11,12 @@ APP_NAME="SakuraWallpaper"
 EXT_NAME="SakuraWallpaperExtension"
 BUILD_DIR="build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
-EXT_DIR="$APP_DIR/Contents/PlugIns/$EXT_NAME.appex"
+# ExtensionKit extensions (@main AppExtension / ExtensionFoundation) MUST live in
+# Contents/Extensions, NOT the legacy Contents/PlugIns (that's for old NSExtension
+# plugins). The System Settings wallpaper picker uses ExtensionKit discovery, which
+# only scans Contents/Extensions — placing the .appex in PlugIns makes pluginkit
+# register it but the picker never sees it. (Verified against Phosphene's bundle.)
+EXT_DIR="$APP_DIR/Contents/Extensions/$EXT_NAME.appex"
 APP_VERSION="2.0.0"
 BUNDLE_ID="com.sakura.wallpaper"
 EXT_BUNDLE_ID="com.sakura.wallpaper.extension"
@@ -83,7 +88,7 @@ APP_SRCS=(
 rm -rf "$BUILD_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Resources"
-mkdir -p "$APP_DIR/Contents/PlugIns"
+mkdir -p "$APP_DIR/Contents/Extensions"
 
 # ---------------------------------------------------------------------------
 # Compile app
@@ -215,7 +220,7 @@ fi
 # Without this the app is only "linker-signed" (executable only) and the
 # embedded .appex is NOT sealed into the app's signature — WallpaperAgent then
 # registers the extension but refuses to drive its render lifecycle (acquire()
-# never fires). Signing the bundle here seals Contents/PlugIns/*.appex.
+# never fires). Signing the bundle here seals Contents/Extensions/*.appex.
 # NOTE: ad-hoc (--sign -). A real wallpaper extension on macOS typically needs a
 # genuine "Apple Development" identity; ad-hoc may still be rejected for the full
 # render lifecycle. If so, build via Xcode with a signed-in Apple ID team instead.
