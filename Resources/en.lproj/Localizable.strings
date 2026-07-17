@@ -51,7 +51,7 @@
 "ui.folderItems" = "Items: %d (%@)";
 "ui.recursiveEnabled" = "recursive";
 "ui.recursiveDisabled" = "current folder only";
-"ui.madeBy" = "Made with %@ by sakura";
+"ui.madeBy" = "Made with %@ by Andrew Sabolsky";
 
 // Onboarding
 "onboarding.step1.title" = "Step 1: Pick Your Wallpaper";

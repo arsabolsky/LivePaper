@@ -50,7 +50,7 @@
 "ui.folderItems" = "文件数量: %d（%@）";
 "ui.recursiveEnabled" = "递归扫描";
 "ui.recursiveDisabled" = "仅当前文件夹";
-"ui.madeBy" = "由 sakura 用 %@ 制作";
+"ui.madeBy" = "由 Andrew Sabolsky 用 %@ 制作";
 
 // Onboarding
 "onboarding.step1.title" = "第 1 步：选择壁纸";
