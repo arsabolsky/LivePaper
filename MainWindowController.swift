@@ -169,7 +169,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createHeader() -> NSView {
         let header = NSView(frame: NSRect(x: 0, y: 684, width: 500, height: 60))
 
-        let appIcon = NSTextField(labelWithString: "🌸")
+        let appIcon = NSTextField(labelWithString: "🖼️")
         appIcon.font = NSFont.systemFont(ofSize: 30)
         appIcon.alignment = .center
         appIcon.frame = NSRect(x: 18, y: 12, width: 34, height: 34)

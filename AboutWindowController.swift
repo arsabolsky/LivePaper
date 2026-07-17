@@ -26,7 +26,7 @@ class AboutWindowController: NSWindowController {
         guard let contentView = window?.contentView else { return }
         contentView.wantsLayer = true
         
-        let iconLabel = NSTextField(labelWithString: "🌸")
+        let iconLabel = NSTextField(labelWithString: "🖼️")
         iconLabel.font = NSFont.systemFont(ofSize: 64)
         iconLabel.alignment = .center
         iconLabel.frame = NSRect(x: 0, y: 290, width: 320, height: 80)
