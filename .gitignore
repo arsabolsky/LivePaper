@@ -1,7 +1,6 @@
 # Build output
 build/
 *.app
-*.dmg
 
 # Xcode
 *.xcodeproj/

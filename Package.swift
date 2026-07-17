@@ -30,7 +30,6 @@ let package = Package(
                 "AboutWindowController.swift",
                 "main.swift",
                 "AppIcon.icns",
-                "bg.jpg",
                 "README.md",
                 "LICENSE",
                 "build.sh"
