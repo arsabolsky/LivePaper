@@ -5,7 +5,7 @@ final class PerformanceMonitor {
     static let shared = PerformanceMonitor()
 
     private var startTimes: [UUID: (label: String, start: CFAbsoluteTime)] = [:]
-    private let queue = DispatchQueue(label: "com.sakura.wallpaper.performance")
+    private let queue = DispatchQueue(label: "com.arsabolsky.livepaper.performance")
     private var peakMemoryMB: Double = 0
 
     private init() {}

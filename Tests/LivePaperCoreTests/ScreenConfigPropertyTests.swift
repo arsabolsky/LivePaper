@@ -1,5 +1,5 @@
 import XCTest
-@testable import SakuraWallpaperCore
+@testable import LivePaperCore
 
 // MARK: - Deterministic Pseudo-Random Generator
 
@@ -61,7 +61,7 @@ final class ScreenConfigPropertyTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        suiteName = "SakuraWallpaperPropertyTests.\(UUID().uuidString)"
+        suiteName = "LivePaperPropertyTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
         defaults.removePersistentDomain(forName: suiteName)
         settings = SettingsManager(defaults: defaults)
@@ -79,7 +79,7 @@ final class ScreenConfigPropertyTests: XCTestCase {
     // Validates: Requirements 9.2, 9.3, 5.6
     func testScreenConfigRoundTrip() {
         var rng = DeterministicRNG(seed: 42)
-        let screenRegistryKey = "sakurawallpaper_screen_registry"
+        let screenRegistryKey = "livepaper_screen_registry"
 
         for i in 0..<100 {
             let original = makeConfig(rng: &rng)
@@ -125,15 +125,15 @@ final class ScreenConfigPropertyTests: XCTestCase {
     func testSetScreenConfigDoesNotWriteLegacyKeys() {
         var rng = DeterministicRNG(seed: 999)
         let legacyKeys = [
-            "sakurawallpaper_folder_path",
-            "sakurawallpaper_wallpaper_path",
-            "sakurawallpaper_screen_folder_configs",
-            "sakurawallpaper_screen_wallpapers",
-            "sakurawallpaper_is_folder_mode",
-            "sakurawallpaper_rotation_interval_minutes",
-            "sakurawallpaper_is_shuffle_mode",
-            "sakurawallpaper_is_rotation_enabled",
-            "sakurawallpaper_include_subfolders"
+            "livepaper_folder_path",
+            "livepaper_wallpaper_path",
+            "livepaper_screen_folder_configs",
+            "livepaper_screen_wallpapers",
+            "livepaper_is_folder_mode",
+            "livepaper_rotation_interval_minutes",
+            "livepaper_is_shuffle_mode",
+            "livepaper_is_rotation_enabled",
+            "livepaper_include_subfolders"
         ]
 
         for i in 0..<100 {

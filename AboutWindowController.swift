@@ -98,7 +98,7 @@ class AboutWindowController: NSWindowController {
         author.frame = NSRect(x: 0, y: 12, width: 320, height: 16)
         contentView.addSubview(author)
 
-        let websiteButton = NSButton(title: "github.com/yueseqaz/SakuraWallpaper", target: self, action: #selector(openOfficialWebsite))
+        let websiteButton = NSButton(title: "github.com/arsabolsky/LivePaper", target: self, action: #selector(openOfficialWebsite))
         websiteButton.bezelStyle = .inline
         websiteButton.isBordered = false
         websiteButton.font = NSFont.systemFont(ofSize: 11, weight: .medium)
@@ -108,7 +108,7 @@ class AboutWindowController: NSWindowController {
     }
 
     @objc private func openOfficialWebsite() {
-        guard let url = URL(string: "https://github.com/yueseqaz/SakuraWallpaper") else { return }
+        guard let url = URL(string: "https://github.com/arsabolsky/LivePaper") else { return }
         NSWorkspace.shared.open(url)
     }
 }

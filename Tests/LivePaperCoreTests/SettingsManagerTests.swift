@@ -1,5 +1,5 @@
 import XCTest
-@testable import SakuraWallpaperCore
+@testable import LivePaperCore
 
 final class SettingsManagerTests: XCTestCase {
     private var defaults: UserDefaults!
@@ -8,7 +8,7 @@ final class SettingsManagerTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        suiteName = "SakuraWallpaperTests.\(UUID().uuidString)"
+        suiteName = "LivePaperTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
         defaults.removePersistentDomain(forName: suiteName)
         settings = SettingsManager(defaults: defaults)

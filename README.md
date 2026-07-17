@@ -1,10 +1,9 @@
-# macOS video wallpaper app built with Swift
-# SakuraWallpaper
+# LivePaper
 
 A lightweight video and image wallpaper application for macOS.
 Current version: `v1.0.1`
 
-[Chinese Documentation](README_CN.md)
+> LivePaper began as a fork of [SakuraWallpaper](https://github.com/yueseqaz/SakuraWallpaper) by sakura, and is evolving in its own direction. See [Acknowledgments](#acknowledgments).
 
 ## Features
 
@@ -18,18 +17,19 @@ Current version: `v1.0.1`
 - **Low Battery Auto Pause**: Automatically pauses wallpaper playback when battery level is at or below 20% and not charging
 - Multi-display support with robust monitor detection
 - Video wallpaper with automatic loop playback
-- Recent wallpapers history for quick switching (Supports folders)
+- Recent wallpapers history for quick switching (supports folders)
 - Launch at login support
 - Manual Pause/Resume control
-- Bilingual interface (English / Chinese)
 
 ## Screenshots
 
-![Main Window](img/Sakurawallpaper1.jpeg)
+![Main Window](img/livepaper1.jpeg)
 
-![Status Bar Menu](img/Sakurawallpaper2.jpeg)
+![Status Bar Menu](img/livepaper2.jpeg)
 
-![SakuraWallpaper Demo](img/video.gif)
+![LivePaper Demo](img/video.gif)
+
+> Note: screenshots predate the rename and may still show the original app name.
 
 ## Supported Formats
 
@@ -44,21 +44,13 @@ Current version: `v1.0.1`
 
 ## Installation
 
-### Download
-
-Download the latest `SakuraWallpaper.dmg` from [Releases](../../releases) and drag SakuraWallpaper to Applications folder.
-OR
-```
-brew install --cask yueseqaz/tap/sakura-wallpaper
-```
-
 ### Build from Source
 
 ```
-git clone https://github.com/yueseqaz/SakuraWallpaper.git
-cd SakuraWallpaper
+git clone https://github.com/arsabolsky/LivePaper.git
+cd LivePaper
 ./build.sh
-open build/SakuraWallpaper.app
+open build/LivePaper.app
 ```
 
 Requirements: macOS 12.0+, Xcode Command Line Tools
@@ -88,22 +80,21 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 
 ### Status Bar Menu
 
-- **Open SakuraWallpaper** - Open main window
+- **Open LivePaper** - Open main window
 - **Status: Live/Manually Paused/Low Battery Auto Paused/None** - Real-time informational readout
 - **Pause** - Submenu with `All Screens` and per-screen pause/resume actions
 - **Battery Saver** - Enable low-battery auto pause (<=20% and not charging)
 - **Next Wallpaper** - Includes `All Screens` plus per-screen next actions (shortcut `n` applies to all screens)
 - **Clear Wallpaper** - Reset and remove current selection
 - **Recent** - Quick switch to previous wallpapers or folders
-- **Language** - Switch between English and Chinese
 - **Clear History** - Clear wallpaper history
 
 ## Fix "App is Damaged" Error
 
-If you see "SakuraWallpaper is damaged and can't be opened", run this command in Terminal:
+If you see "LivePaper is damaged and can't be opened", run this command in Terminal:
 
 ```
-xattr -cr /Applications/SakuraWallpaper.app
+xattr -cr /Applications/LivePaper.app
 ```
 
 This removes the quarantine attribute that macOS applies to apps downloaded from the internet.
@@ -116,7 +107,7 @@ This removes the quarantine attribute that macOS applies to apps downloaded from
 ## Project Structure
 
 ```
-SakuraWallpaper/
+LivePaper/
 ├── AppDelegate.swift          # App lifecycle and status bar
 ├── MainWindowController.swift # Main window UI
 ├── WallpaperManager.swift     # Wallpaper playback engine
@@ -131,9 +122,8 @@ SakuraWallpaper/
 ├── AppIcon.icns               # App icon
 ├── Resources/
 │   ├── en.lproj/              # English strings
-│   └── zh-Hans.lproj/         # Chinese strings
-├── README.md                  # English documentation
-├── README_CN.md               # Chinese documentation
+│   └── zh-Hans.lproj/         # Simplified Chinese strings
+├── README.md                  # Documentation
 ├── LICENSE                    # MIT License
 └── .gitignore                 # Git ignore rules
 ```
@@ -148,4 +138,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-Made with ❤️ by sakura
+LivePaper is a fork of [SakuraWallpaper](https://github.com/yueseqaz/SakuraWallpaper), originally created by **sakura** ([@yueseqaz](https://github.com/yueseqaz)). Huge thanks for the original work that made this project possible. ❤️

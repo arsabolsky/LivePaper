@@ -69,7 +69,7 @@
 "onboarding.notNow" = "暂不开启";
 
 // Menu
-"menu.open" = "打开 SakuraWallpaper";
+"menu.open" = "打开 LivePaper";
 "menu.status" = "状态: %@";
 "menu.status.perScreen" = "分屏轮播";
 "menu.status.rotating" = "轮播中: %@";

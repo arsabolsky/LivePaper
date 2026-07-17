@@ -1,5 +1,5 @@
 import XCTest
-@testable import SakuraWallpaperCore
+@testable import LivePaperCore
 
 /// Preservation tests for SettingsManager.screenIdentifier.
 ///

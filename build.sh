@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP_NAME="SakuraWallpaper"
+APP_NAME="LivePaper"
 BUILD_DIR="build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
 APP_VERSION="1.0.1"
@@ -14,12 +14,12 @@ APP_VERSION="1.0.1"
 DEPLOYMENT_TARGET="12.0"
 SWIFT_TARGET="$(uname -m)-apple-macos$DEPLOYMENT_TARGET"
 
-# 清理
+# Clean
 rm -rf "$BUILD_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Resources"
 
-# 编译
+# Compile
 echo "Compiling..."
 swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
     -target "$SWIFT_TARGET" \
@@ -39,13 +39,13 @@ swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
     main.swift \
     -framework Cocoa -framework AVKit -framework AVFoundation -framework ServiceManagement -framework ImageIO -framework IOKit
 
-# 复制资源
+# Copy resources
 cp -R Resources "$APP_DIR/Contents/"
 
-# 复制图标
+# Copy icon
 cp AppIcon.icns "$APP_DIR/Contents/Resources/"
 
-# 创建 Info.plist
+# Write Info.plist
 cat > "$APP_DIR/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -56,7 +56,7 @@ cat > "$APP_DIR/Contents/Info.plist" << EOF
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>com.sakura.wallpaper</string>
+    <string>com.arsabolsky.livepaper</string>
     <key>CFBundleName</key>
     <string>$APP_NAME</string>
     <key>CFBundleVersion</key>
@@ -73,13 +73,13 @@ EOF
 
 echo "Done! App: $APP_DIR"
 
-# 打包 DMG（传入 dmg 参数）
+# Package DMG (pass 'dmg' as the first argument)
 if [ "$1" = "dmg" ]; then
     echo "Creating DMG..."
     DMG_TMP="dmg_tmp"
     rm -rf "$DMG_TMP" "$APP_NAME.dmg"
 
-    # 压缩背景图
+    # Compress the background image
     python3 -c "
 from PIL import Image
 img = Image.open('bg.jpg')
@@ -87,11 +87,11 @@ img = img.resize((500, 320), Image.LANCZOS)
 img.save('bg.png', optimize=True)
 "
 
-    # 准备内容
+    # Prepare contents
     mkdir -p "$DMG_TMP"
     cp -R "$APP_DIR" "$DMG_TMP/"
 
-    # 用 create-dmg 打包（需 brew install create-dmg）
+    # Package with create-dmg (requires: brew install create-dmg)
     create-dmg \
       --volname "$APP_NAME" \
       --volicon "AppIcon.icns" \

@@ -1,16 +1,16 @@
 import XCTest
-@testable import SakuraWallpaperCore
+@testable import LivePaperCore
 
 final class ScreenConfigTests: XCTestCase {
     private var defaults: UserDefaults!
     private var settings: SettingsManager!
     private var suiteName: String!
 
-    private let screenRegistryKey = "sakurawallpaper_screen_registry"
+    private let screenRegistryKey = "livepaper_screen_registry"
 
     override func setUp() {
         super.setUp()
-        suiteName = "SakuraWallpaperTests.\(UUID().uuidString)"
+        suiteName = "LivePaperTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
         defaults.removePersistentDomain(forName: suiteName)
         settings = SettingsManager(defaults: defaults)
@@ -99,17 +99,17 @@ final class ScreenConfigTests: XCTestCase {
 
     func testCleanSlateDeletesLegacyKeys() {
         let legacyKeys: [String: Any] = [
-            "sakurawallpaper_folder_path": "/tmp/folder",
-            "sakurawallpaper_wallpaper_path": "/tmp/wallpaper.jpg",
-            "sakurawallpaper_screen_folder_configs": Data(),
-            "sakurawallpaper_screen_wallpapers": ["key": "value"],
-            "sakurawallpaper_is_folder_mode": true,
-            "sakurawallpaper_rotation_interval_minutes": 30,
-            "sakurawallpaper_is_shuffle_mode": true,
-            "sakurawallpaper_is_rotation_enabled": false,
-            "sakurawallpaper_include_subfolders": true,
-            "sakurawallpaper_new_screen_inheritance_mode": "primaryScreen",
-            "sakurawallpaper_new_screen_inheritance_screen_id": "screen_1"
+            "livepaper_folder_path": "/tmp/folder",
+            "livepaper_wallpaper_path": "/tmp/wallpaper.jpg",
+            "livepaper_screen_folder_configs": Data(),
+            "livepaper_screen_wallpapers": ["key": "value"],
+            "livepaper_is_folder_mode": true,
+            "livepaper_rotation_interval_minutes": 30,
+            "livepaper_is_shuffle_mode": true,
+            "livepaper_is_rotation_enabled": false,
+            "livepaper_include_subfolders": true,
+            "livepaper_new_screen_inheritance_mode": "primaryScreen",
+            "livepaper_new_screen_inheritance_screen_id": "screen_1"
         ]
 
         for (key, value) in legacyKeys {
@@ -203,15 +203,15 @@ final class ScreenConfigTests: XCTestCase {
         settings.setScreenConfig(config, for: "screen_1")
 
         let legacyKeys = [
-            "sakurawallpaper_folder_path",
-            "sakurawallpaper_wallpaper_path",
-            "sakurawallpaper_screen_folder_configs",
-            "sakurawallpaper_screen_wallpapers",
-            "sakurawallpaper_is_folder_mode",
-            "sakurawallpaper_rotation_interval_minutes",
-            "sakurawallpaper_is_shuffle_mode",
-            "sakurawallpaper_is_rotation_enabled",
-            "sakurawallpaper_include_subfolders"
+            "livepaper_folder_path",
+            "livepaper_wallpaper_path",
+            "livepaper_screen_folder_configs",
+            "livepaper_screen_wallpapers",
+            "livepaper_is_folder_mode",
+            "livepaper_rotation_interval_minutes",
+            "livepaper_is_shuffle_mode",
+            "livepaper_is_rotation_enabled",
+            "livepaper_include_subfolders"
         ]
 
         for key in legacyKeys {

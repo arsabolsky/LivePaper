@@ -26,11 +26,11 @@ class WallpaperManager {
     private var syncGroupTimer: Timer?
     private var syncGroupPlaylistIndex: Int = 0
     private let fileManager = FileManager.default
-    private let lockScreenCaptureQueue = DispatchQueue(label: "com.sakura.wallpaper.lockscreen", qos: .userInitiated)
+    private let lockScreenCaptureQueue = DispatchQueue(label: "com.arsabolsky.livepaper.lockscreen", qos: .userInitiated)
     private var transientDesktopSnapshotsByScreen: [String: URL] = [:]
     private var screensChangedWorkItem: DispatchWorkItem?
-    /// Original system desktop URLs captured before SakuraWallpaper first overwrites them.
-    /// Used to restore the wallpaper when the user clears SakuraWallpaper.
+    /// Original system desktop URLs captured before LivePaper first overwrites them.
+    /// Used to restore the wallpaper when the user clears LivePaper.
     private var originalDesktopURLsByScreen: [String: URL] = [:]
 
     static let didRotateNotification = Notification.Name("WallpaperManagerDidRotate")
@@ -401,7 +401,7 @@ class WallpaperManager {
     private func applyDesktopImage(at imageURL: URL, for screen: NSScreen, screenID: String) {
         do {
             // Capture the original system desktop URL the first time we overwrite it,
-            // so we can restore it when the user clears SakuraWallpaper.
+            // so we can restore it when the user clears LivePaper.
             if originalDesktopURLsByScreen[screenID] == nil {
                 originalDesktopURLsByScreen[screenID] = NSWorkspace.shared.desktopImageURL(for: screen)
             }
@@ -441,7 +441,7 @@ class WallpaperManager {
     }
 
     private func makeTransientSnapshotURL(for screenID: String) -> URL {
-        let directory = fileManager.temporaryDirectory.appendingPathComponent("SakuraWallpaper", isDirectory: true)
+        let directory = fileManager.temporaryDirectory.appendingPathComponent("LivePaper", isDirectory: true)
         return directory.appendingPathComponent("lockscreen-current-\(screenID)-\(UUID().uuidString).jpg")
     }
 
@@ -569,7 +569,7 @@ class WallpaperManager {
         // A screen has a registry entry if its config differs from the default
         // OR if the registry key exists with an entry for this screen.
         // We check by reading the raw registry data.
-        guard let data = UserDefaults.standard.data(forKey: "sakurawallpaper_screen_registry"),
+        guard let data = UserDefaults.standard.data(forKey: "livepaper_screen_registry"),
               let registry = try? JSONDecoder().decode(Screen_Registry.self, from: data) else {
             return false
         }

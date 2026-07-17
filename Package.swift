@@ -2,16 +2,16 @@
 import PackageDescription
 
 let package = Package(
-    name: "SakuraWallpaperCore",
+    name: "LivePaperCore",
     platforms: [
         .macOS(.v12)
     ],
     products: [
-        .library(name: "SakuraWallpaperCore", targets: ["SakuraWallpaperCore"])
+        .library(name: "LivePaperCore", targets: ["LivePaperCore"])
     ],
     targets: [
         .target(
-            name: "SakuraWallpaperCore",
+            name: "LivePaperCore",
             path: ".",
             exclude: [
                 "Resources",
@@ -32,7 +32,6 @@ let package = Package(
                 "AppIcon.icns",
                 "bg.jpg",
                 "README.md",
-                "README_CN.md",
                 "LICENSE",
                 "build.sh"
             ],
@@ -48,9 +47,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "SakuraWallpaperCoreTests",
-            dependencies: ["SakuraWallpaperCore"],
-            path: "Tests/SakuraWallpaperCoreTests"
+            name: "LivePaperCoreTests",
+            dependencies: ["LivePaperCore"],
+            path: "Tests/LivePaperCoreTests"
         )
     ]
 )

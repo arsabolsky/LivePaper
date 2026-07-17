@@ -1,16 +1,16 @@
 #!/bin/bash
 #
-# SakuraWallpaper — Total Reset
+# LivePaper — Total Reset
 # Kills the running app, deletes all persisted state, and cleans temp files.
 # On the next launch the app will behave as a fresh install (onboarding, etc.).
 #
 
 set -euo pipefail
 
-APP_NAME="SakuraWallpaper"
-BUNDLE_ID="com.sakura.wallpaper"
+APP_NAME="LivePaper"
+BUNDLE_ID="com.arsabolsky.livepaper"
 
-echo "🌸 SakuraWallpaper — Total Reset"
+echo "LivePaper — Total Reset"
 echo "================================="
 
 # 1. Kill the running app (if any)
@@ -33,10 +33,10 @@ fi
 defaults delete "$BUNDLE_ID" 2>/dev/null || true
 
 # 3. Delete transient lock-screen snapshots from /tmp
-TMPDIR_SAKURA="${TMPDIR}SakuraWallpaper"
-if [ -d "$TMPDIR_SAKURA" ]; then
-    echo "🗑  Removing temp snapshots: $TMPDIR_SAKURA"
-    rm -rf "$TMPDIR_SAKURA"
+TMPDIR_LIVEPAPER="${TMPDIR}LivePaper"
+if [ -d "$TMPDIR_LIVEPAPER" ]; then
+    echo "🗑  Removing temp snapshots: $TMPDIR_LIVEPAPER"
+    rm -rf "$TMPDIR_LIVEPAPER"
 else
     echo "ℹ️  No temp snapshots found"
 fi

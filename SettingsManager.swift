@@ -8,16 +8,16 @@ class SettingsManager {
     private let defaults: UserDefaults
 
     // MARK: - UserDefaults Keys (retained)
-    private let launchKey                = "sakurawallpaper_launch_at_login"
-    private let pauseWhenInvisibleKey    = "sakurawallpaper_pause_when_invisible"
-    private let historyKey               = "sakurawallpaper_history"
-    private let languageKey              = "sakurawallpaper_language"
-    private let onboardingCompletedKey   = "sakurawallpaper_onboarding_completed"
-    private let syncDesktopWallpaperKey  = "sakurawallpaper_sync_desktop_wallpaper"
+    private let launchKey                = "livepaper_launch_at_login"
+    private let pauseWhenInvisibleKey    = "livepaper_pause_when_invisible"
+    private let historyKey               = "livepaper_history"
+    private let languageKey              = "livepaper_language"
+    private let onboardingCompletedKey   = "livepaper_onboarding_completed"
+    private let syncDesktopWallpaperKey  = "livepaper_sync_desktop_wallpaper"
 
     // MARK: - UserDefaults Keys (new)
-    private let screenRegistryKey        = "sakurawallpaper_screen_registry"
-    private let newScreenPolicyKey       = "sakurawallpaper_new_screen_policy"
+    private let screenRegistryKey        = "livepaper_screen_registry"
+    private let newScreenPolicyKey       = "livepaper_new_screen_policy"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -75,17 +75,17 @@ class SettingsManager {
 
         // Delete all legacy keys
         let legacyKeys = [
-            "sakurawallpaper_folder_path",
-            "sakurawallpaper_wallpaper_path",
-            "sakurawallpaper_screen_folder_configs",
-            "sakurawallpaper_screen_wallpapers",
-            "sakurawallpaper_is_folder_mode",
-            "sakurawallpaper_rotation_interval_minutes",
-            "sakurawallpaper_is_shuffle_mode",
-            "sakurawallpaper_is_rotation_enabled",
-            "sakurawallpaper_include_subfolders",
-            "sakurawallpaper_new_screen_inheritance_mode",
-            "sakurawallpaper_new_screen_inheritance_screen_id"
+            "livepaper_folder_path",
+            "livepaper_wallpaper_path",
+            "livepaper_screen_folder_configs",
+            "livepaper_screen_wallpapers",
+            "livepaper_is_folder_mode",
+            "livepaper_rotation_interval_minutes",
+            "livepaper_is_shuffle_mode",
+            "livepaper_is_rotation_enabled",
+            "livepaper_include_subfolders",
+            "livepaper_new_screen_inheritance_mode",
+            "livepaper_new_screen_inheritance_screen_id"
         ]
         for key in legacyKeys {
             defaults.removeObject(forKey: key)

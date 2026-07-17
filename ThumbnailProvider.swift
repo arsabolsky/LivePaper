@@ -6,7 +6,7 @@ final class ThumbnailProvider {
     static let shared = ThumbnailProvider()
 
     private let cache = NSCache<NSString, NSImage>()
-    private let imageQueue = DispatchQueue(label: "com.sakura.wallpaper.thumbnail.image", qos: .userInitiated, attributes: .concurrent)
+    private let imageQueue = DispatchQueue(label: "com.arsabolsky.livepaper.thumbnail.image", qos: .userInitiated, attributes: .concurrent)
 
     private init() {
         cache.countLimit = 400

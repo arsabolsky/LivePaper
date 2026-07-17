@@ -1,5 +1,5 @@
 import XCTest
-@testable import SakuraWallpaperCore
+@testable import LivePaperCore
 
 /// Bug condition exploration tests for UI functionality bugs.
 ///

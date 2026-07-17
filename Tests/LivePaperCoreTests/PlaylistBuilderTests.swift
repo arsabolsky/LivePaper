@@ -1,5 +1,5 @@
 import XCTest
-@testable import SakuraWallpaperCore
+@testable import LivePaperCore
 
 final class PlaylistBuilderTests: XCTestCase {
     func testNextIndexSequentialWrapsAround() {
@@ -14,7 +14,7 @@ final class PlaylistBuilderTests: XCTestCase {
 
     func testCollectMediaFilesHonorsIncludeSubfolders() throws {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("SakuraWallpaperPlaylistTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("LivePaperPlaylistTests-\(UUID().uuidString)", isDirectory: true)
         let nested = root.appendingPathComponent("nested", isDirectory: true)
         try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }

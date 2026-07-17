@@ -1,5 +1,5 @@
 // App
-"app.name" = "SakuraWallpaper";
+"app.name" = "LivePaper";
 
 // Errors
 "error.fileNotFound" = "File Not Found";
@@ -29,7 +29,7 @@
 "ui.launchAtLogin" = "Launch at Login";
 "ui.pauseWhenInvisible" = "Battery Saver";
 "ui.syncDesktopWallpaper" = "Sync Static Wallpaper to Lock Screen & Desktop";
-"ui.syncDesktopWallpaper.tooltip" = "When enabled, SakuraWallpaper pushes a static copy of the current wallpaper to macOS. Images apply immediately; videos snapshot the current frame. This keeps the lock screen and desktop consistent when the app is not visible.";
+"ui.syncDesktopWallpaper.tooltip" = "When enabled, LivePaper pushes a static copy of the current wallpaper to macOS. Images apply immediately; videos snapshot the current frame. This keeps the lock screen and desktop consistent when the app is not visible.";
 "ui.rotationInterval" = "Interval";
 "ui.enableRotation" = "Enable Rotation";
 "ui.folderMode" = "Rotation Mode";
@@ -59,7 +59,7 @@
 "onboarding.step2.title" = "Step 2: Set Rotation Interval";
 "onboarding.step2.message" = "How often should wallpapers switch in folder mode?";
 "onboarding.step3.title" = "Step 3: Launch at Login";
-"onboarding.step3.message" = "Enable auto-launch so SakuraWallpaper starts with macOS.";
+"onboarding.step3.message" = "Enable auto-launch so LivePaper starts with macOS.";
 "onboarding.pickFile" = "Pick File";
 "onboarding.pickFolder" = "Pick Folder";
 "onboarding.skip" = "Skip for Now";
@@ -70,7 +70,7 @@
 "onboarding.notNow" = "Not Now";
 
 // Menu
-"menu.open" = "Open SakuraWallpaper";
+"menu.open" = "Open LivePaper";
 "menu.status" = "Status: %@";
 "menu.status.perScreen" = "Per-Screen Rotation";
 "menu.status.rotating" = "Rotating: %@";
@@ -104,7 +104,7 @@
 "screen.builtIn" = " (Built-in)";
 
 // About
-"about.title" = "About SakuraWallpaper";
+"about.title" = "About LivePaper";
 "about.version" = "Version %@";
 "about.description" = "A lightweight video & image\nwallpaper app for macOS";
 "about.formatsTitle" = "Supported Formats";
