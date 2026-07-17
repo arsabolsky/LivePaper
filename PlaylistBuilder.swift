@@ -1,5 +1,3 @@
-// MARK: - [Phase 0] Xcode-free migration — now lives in SakuraWallpaperCore/Sources/SakuraWallpaperCore/
-// Shared between the app (library grid preview) and the RotationEngine actor in the extension.
 import Foundation
 
 enum PlaylistBuilder {

@@ -31,5 +31,3 @@ DerivedData/
 
 # Agent data
 .kiro/
-.claude/
-build/

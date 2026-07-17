@@ -1,6 +1,3 @@
-// MARK: - [Phase 0] Xcode-free migration — now lives in SakuraWallpaperCore/Sources/SakuraWallpaperCore/
-// App-side persistence layer. Only linked into the app target; the extension reads prefs
-// from sakura-prefs.json (written by SakuraPrefsWriter) rather than UserDefaults.
 import Foundation
 import ServiceManagement
 import Cocoa
