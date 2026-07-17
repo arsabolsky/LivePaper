@@ -33,7 +33,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "🌸"
+        statusItem.button?.title = "🖼️"
 
         let menu = NSMenu()
 
