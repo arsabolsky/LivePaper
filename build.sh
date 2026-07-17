@@ -5,6 +5,15 @@ BUILD_DIR="build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
 APP_VERSION="1.0.1"
 
+# Deployment target — MUST be passed to swiftc via -target. Without it, swiftc
+# derives the Mach-O LC_BUILD_VERSION `minos` from the host toolchain, which on
+# recent systems resolves ABOVE the running OS (e.g. minos 28.0 on a macOS 26/27
+# host). A binary whose `minos` exceeds the current OS is rejected at launch with
+# "not compatible with this version of macOS" — LSMinimumSystemVersion in
+# Info.plist does NOT set minos. Pin it to match LSMinimumSystemVersion below.
+DEPLOYMENT_TARGET="12.0"
+SWIFT_TARGET="$(uname -m)-apple-macos$DEPLOYMENT_TARGET"
+
 # 清理
 rm -rf "$BUILD_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
@@ -13,6 +22,7 @@ mkdir -p "$APP_DIR/Contents/Resources"
 # 编译
 echo "Compiling..."
 swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
+    -target "$SWIFT_TARGET" \
     Screen_Config.swift \
     SettingsManager.swift \
     MediaType.swift \
