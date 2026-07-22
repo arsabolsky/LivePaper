@@ -628,6 +628,14 @@ class WallpaperManager {
     }
 
     func reconcile() {
+        // Must run on the main thread: apply(_:to:) orders NSWindows, and AppKit
+        // window operations off-main trap. Some triggers (notably
+        // NSProcessInfoPowerStateDidChange, posted when Low Power Mode toggles)
+        // are delivered on a background thread, so hop to main defensively.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.reconcile() }
+            return
+        }
         guard isActive else { coordinator.reset(); return }
         let reasonsByScreen = PauseEvaluator.reasonsByScreen(currentPauseInputs())
         let changed = coordinator.reconcile(reasonsByScreen: reasonsByScreen, control: self)
