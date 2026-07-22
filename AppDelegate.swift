@@ -10,15 +10,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var pauseItem: NSMenuItem!
     var pauseMenu: NSMenu!
     var pauseAllItem: NSMenuItem!
-    var autoPauseItem: NSMenuItem!
-    var pauseWhenCoveredItem: NSMenuItem!
-    var thermalPauseItem: NSMenuItem!
+    var batteryPauseItem: NSMenuItem!
+    var batteryPauseMenu: NSMenu!
+    var visibilityPauseItem: NSMenuItem!
+    var visibilityPauseMenu: NSMenu!
     var nextMenuItem: NSMenuItem!
     var nextWallpaperMenu: NSMenu!
     var languageMenu: NSMenu!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         wallpaperManager = WallpaperManager()
+        SettingsManager.shared.migratePausePoliciesIfNeeded()
         mainWindow = MainWindowController(wallpaperManager: wallpaperManager)
         setupStatusBar()
 
@@ -65,17 +67,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        autoPauseItem = NSMenuItem(title: "menu.autoPause".localized, action: #selector(toggleAutoPause), keyEquivalent: "")
-        autoPauseItem.target = self
-        menu.addItem(autoPauseItem)
+        batteryPauseMenu = NSMenu(title: "menu.batteryPause".localized)
+        batteryPauseItem = NSMenuItem(title: "menu.batteryPause".localized, action: nil, keyEquivalent: "")
+        batteryPauseItem.submenu = batteryPauseMenu
+        menu.addItem(batteryPauseItem)
 
-        pauseWhenCoveredItem = NSMenuItem(title: "menu.pauseWhenCovered".localized, action: #selector(togglePauseWhenCovered), keyEquivalent: "")
-        pauseWhenCoveredItem.target = self
-        menu.addItem(pauseWhenCoveredItem)
-
-        thermalPauseItem = NSMenuItem(title: "menu.pauseUnderThermal".localized, action: #selector(togglePauseUnderThermal), keyEquivalent: "")
-        thermalPauseItem.target = self
-        menu.addItem(thermalPauseItem)
+        visibilityPauseMenu = NSMenu(title: "menu.visibilityPause".localized)
+        visibilityPauseItem = NSMenuItem(title: "menu.visibilityPause".localized, action: nil, keyEquivalent: "")
+        visibilityPauseItem.submenu = visibilityPauseMenu
+        menu.addItem(visibilityPauseItem)
 
         languageMenu = NSMenu(title: "menu.language".localized)
         let languageItem = NSMenuItem(title: "menu.language".localized, action: nil, keyEquivalent: "")
@@ -290,33 +290,57 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow.updateUI()
     }
 
-    @objc func toggleAutoPause() {
-        SettingsManager.shared.pauseWhenInvisible = !SettingsManager.shared.pauseWhenInvisible
-        wallpaperManager.checkPlaybackState()
-        updateAutoPauseItem()
+    private func rebuildBatteryPauseMenu() {
+        batteryPauseMenu.removeAllItems()
+        let current = SettingsManager.shared.batteryPausePolicy
+        let options: [(BatteryPausePolicy, String)] = [
+            (.off, "policy.battery.off".localized),
+            (.lowBattery, "policy.battery.lowBattery".localized),
+            (.onBattery, "policy.battery.onBattery".localized),
+            (.followLowPowerMode, "policy.battery.followLowPowerMode".localized),
+        ]
+        for (policy, title) in options {
+            let item = NSMenuItem(title: title, action: #selector(setBatteryPolicy(_:)), keyEquivalent: "")
+            item.representedObject = policy.rawValue
+            item.target = self
+            item.state = (policy == current) ? .on : .off
+            batteryPauseMenu.addItem(item)
+        }
+    }
+
+    private func rebuildVisibilityPauseMenu() {
+        visibilityPauseMenu.removeAllItems()
+        let current = SettingsManager.shared.visibilityPausePolicy
+        let options: [(VisibilityPausePolicy, String)] = [
+            (.off, "policy.visibility.off".localized),
+            (.covered, "policy.visibility.covered".localized),
+            (.unfocused, "policy.visibility.unfocused".localized),
+        ]
+        for (policy, title) in options {
+            let item = NSMenuItem(title: title, action: #selector(setVisibilityPolicy(_:)), keyEquivalent: "")
+            item.representedObject = policy.rawValue
+            item.target = self
+            item.state = (policy == current) ? .on : .off
+            visibilityPauseMenu.addItem(item)
+        }
+    }
+
+    @objc func setBatteryPolicy(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let policy = BatteryPausePolicy(rawValue: raw) else { return }
+        SettingsManager.shared.batteryPausePolicy = policy
+        wallpaperManager.onPausePolicyChanged()
+        rebuildBatteryPauseMenu()
         mainWindow.updateUI()
     }
 
-    @objc func togglePauseWhenCovered() {
-        SettingsManager.shared.pauseWhenOccluded = !SettingsManager.shared.pauseWhenOccluded
-        wallpaperManager.applyOcclusionPolicyChange()
-        updatePauseWhenCoveredItem()
+    @objc func setVisibilityPolicy(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let policy = VisibilityPausePolicy(rawValue: raw) else { return }
+        SettingsManager.shared.visibilityPausePolicy = policy
+        wallpaperManager.onPausePolicyChanged()
+        rebuildVisibilityPauseMenu()
         mainWindow.updateUI()
-    }
-
-    private func updatePauseWhenCoveredItem() {
-        pauseWhenCoveredItem.state = SettingsManager.shared.pauseWhenOccluded ? .on : .off
-    }
-
-    @objc func togglePauseUnderThermal() {
-        SettingsManager.shared.pauseUnderThermalPressure = !SettingsManager.shared.pauseUnderThermalPressure
-        wallpaperManager.checkPlaybackState()
-        updateThermalPauseItem()
-        mainWindow.updateUI()
-    }
-
-    private func updateThermalPauseItem() {
-        thermalPauseItem.state = SettingsManager.shared.pauseUnderThermalPressure ? .on : .off
     }
 
     private func rebuildPauseMenu() {
@@ -337,12 +361,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 displayName = "screen.display".localized(index + 1)
             }
-            let isPaused = wallpaperManager.isScreenPaused(screen)
-            let suffix = isPaused ? " - \("menu.resume".localized)" : " - \("menu.pause".localized)"
+            let reasons = wallpaperManager.reasons(for: screen)
+            let isManuallyPaused = wallpaperManager.isScreenPaused(screen)
+            let suffix: String
+            if let dominant = reasons.max(by: { $0.statusPriority < $1.statusPriority }) {
+                suffix = " — " + "reason.\(dominant.rawValue)".localized
+            } else {
+                suffix = " — " + "ui.playing".localized
+            }
             let item = NSMenuItem(title: "\(displayName)\(suffix)", action: #selector(togglePauseForScreen(_:)), keyEquivalent: "")
             item.representedObject = screen
             item.target = self
-            item.state = isPaused ? .on : .off
+            item.state = isManuallyPaused ? .on : .off
             item.isEnabled = wallpaperManager.isActive
             pauseMenu.addItem(item)
         }
@@ -353,40 +383,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pauseItem.isEnabled = wallpaperManager.isActive
     }
 
-    private func updateAutoPauseItem() {
-        autoPauseItem.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
+    private func updateStatusLine() {
         if !wallpaperManager.isActive {
             statusMenuItem.title = "menu.status".localized("ui.notSet".localized)
+            return
+        }
+        let stateLabel: String
+        switch wallpaperManager.statusSummary {
+        case .stopped:          stateLabel = "ui.notSet".localized
+        case .playing:          stateLabel = "ui.playing".localized
+        case .partiallyPaused:  stateLabel = "status.partiallyPaused".localized
+        case .paused(let reason):
+            stateLabel = "reason.\(reason.rawValue)".localized
+        }
+        let firstActiveScreen = NSScreen.screens.first
+        let firstID = firstActiveScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
+        let config = SettingsManager.shared.screenConfig(for: firstID)
+        let isRotating = config.isFolderMode && config.isRotationEnabled
+        let shuffleIcon = (isRotating && config.isShuffleMode) ? "🔀 " : ""
+        if isRotating, let folderPath = config.folderPath {
+            let folderName = (folderPath as NSString).lastPathComponent
+            statusMenuItem.title = "\(shuffleIcon)\("menu.status.rotating".localized(folderName)) (\(stateLabel))"
+        } else if let url = firstActiveScreen.flatMap({ wallpaperManager.currentFile(for: SettingsManager.screenIdentifier($0)) }) {
+            statusMenuItem.title = "menu.status.file".localized(url.lastPathComponent) + " (\(stateLabel))"
         } else {
-            let stateLabel: String
-            switch wallpaperManager.playbackStatus {
-            case .stopped:
-                stateLabel = "ui.notSet".localized
-            case .playing:
-                stateLabel = "ui.playing".localized
-            case .pausedManual:
-                stateLabel = "ui.pausedManual".localized
-            case .pausedAuto:
-                stateLabel = "ui.pausedAuto".localized
-            }
-            
-            // Get config from first active screen
-            let firstActiveScreen = NSScreen.screens.first
-            let firstID = firstActiveScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
-            let config = SettingsManager.shared.screenConfig(for: firstID)
-            
-            let isRotating = config.isFolderMode && config.isRotationEnabled
-            let shuffleIcon = (isRotating && config.isShuffleMode) ? "🔀 " : ""
-            
-            if isRotating, let folderPath = config.folderPath {
-                let folderName = (folderPath as NSString).lastPathComponent
-                statusMenuItem.title = "\(shuffleIcon)\("menu.status.rotating".localized(folderName)) (\(stateLabel))"
-            } else if let url = firstActiveScreen.flatMap({ wallpaperManager.currentFile(for: SettingsManager.screenIdentifier($0)) }) {
-                let fileName = url.lastPathComponent
-                statusMenuItem.title = "menu.status.file".localized(fileName) + " (\(stateLabel))"
-            } else {
-                statusMenuItem.title = "menu.status".localized(stateLabel)
-            }
+            statusMenuItem.title = "menu.status".localized(stateLabel)
         }
     }
 
@@ -434,8 +455,8 @@ extension AppDelegate: NSMenuDelegate {
         rebuildNextWallpaperMenu()
         rebuildLanguageMenu()
         updatePauseItem()
-        updateAutoPauseItem()
-        updatePauseWhenCoveredItem()
-        updateThermalPauseItem()
+        rebuildBatteryPauseMenu()
+        rebuildVisibilityPauseMenu()
+        updateStatusLine()
     }
 }
