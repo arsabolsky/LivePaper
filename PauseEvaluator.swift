@@ -12,6 +12,8 @@ struct PauseInputs {
     var visibilityPolicy: VisibilityPausePolicy
     var occludedScreens: Set<String>
     var desktopFrontmost: Bool
+    /// Battery percentage at or below which `.lowBattery` triggers. Defaults to 20.
+    var lowBatteryThreshold: Int = 20
 }
 
 /// Aggregate playback state across all screens, for the menu-bar status line.
@@ -23,15 +25,15 @@ enum PlaybackSummary: Equatable {
 }
 
 enum PauseEvaluator {
-    static let lowBatteryThreshold = 20
+    static let defaultLowBatteryThreshold = 20
 
-    static func batteryConditionMet(_ policy: BatteryPausePolicy, _ power: PowerState) -> Bool {
+    static func batteryConditionMet(_ policy: BatteryPausePolicy, _ power: PowerState, threshold: Int = defaultLowBatteryThreshold) -> Bool {
         switch policy {
         case .off:
             return false
         case .lowBattery:
             guard let level = power.batteryLevel else { return false }
-            return !power.isCharging && level <= lowBatteryThreshold
+            return !power.isCharging && level <= threshold
         case .onBattery:
             return !power.isCharging && power.batteryLevel != nil
         case .followLowPowerMode:
@@ -44,7 +46,7 @@ enum PauseEvaluator {
         if i.manualAll { r.insert(.manualAll) }
         if i.manualScreens.contains(id) { r.insert(.manualScreen) }
         if i.systemAsleep { r.insert(.asleep) }
-        if batteryConditionMet(i.batteryPolicy, i.power) { r.insert(.lowBattery) }
+        if batteryConditionMet(i.batteryPolicy, i.power, threshold: i.lowBatteryThreshold) { r.insert(.lowBattery) }
         switch i.visibilityPolicy {
         case .off:
             break

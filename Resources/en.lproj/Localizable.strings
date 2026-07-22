@@ -28,6 +28,7 @@
 "ui.launchAtLogin" = "Launch at Login";
 "ui.batteryPause" = "Battery pause";
 "ui.visibilityPause" = "Visibility pause";
+"ui.lowBatteryThreshold.tooltip" = "When 'When battery is low' is selected, playback pauses at or below this battery percentage (while unplugged).";
 "ui.syncDesktopWallpaper" = "Sync Static Wallpaper to Lock Screen & Desktop";
 "ui.syncDesktopWallpaper.tooltip" = "When enabled, LivePaper pushes a static copy of the current wallpaper to macOS. Images apply immediately; videos snapshot the current frame. This keeps the lock screen and desktop consistent when the app is not visible.";
 "ui.rotationInterval" = "Interval";

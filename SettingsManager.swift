@@ -17,6 +17,7 @@ class SettingsManager {
     // MARK: - UserDefaults Keys (pause policies)
     private let batteryPausePolicyKey    = "livepaper_battery_pause_policy"
     private let visibilityPausePolicyKey = "livepaper_visibility_pause_policy"
+    private let lowBatteryThresholdKey   = "livepaper_low_battery_threshold"
     // Legacy keys, migrated away in migratePausePoliciesIfNeeded().
     private let legacyPauseInvisibleKey  = "livepaper_pause_when_invisible"
     private let legacyPauseOccludedKey   = "livepaper_pause_when_occluded"
@@ -136,6 +137,22 @@ class SettingsManager {
             return p
         }
         set { defaults.set(newValue.rawValue, forKey: batteryPausePolicyKey) }
+    }
+
+    /// Battery percentage at or below which the `.lowBattery` policy pauses
+    /// (when not on AC power). Clamped to 5...95; defaults to 20.
+    static let lowBatteryThresholdRange = 5...95
+    var lowBatteryThresholdPercent: Int {
+        get {
+            guard let stored = defaults.object(forKey: lowBatteryThresholdKey) as? Int else { return 20 }
+            return min(SettingsManager.lowBatteryThresholdRange.upperBound,
+                       max(SettingsManager.lowBatteryThresholdRange.lowerBound, stored))
+        }
+        set {
+            let clamped = min(SettingsManager.lowBatteryThresholdRange.upperBound,
+                              max(SettingsManager.lowBatteryThresholdRange.lowerBound, newValue))
+            defaults.set(clamped, forKey: lowBatteryThresholdKey)
+        }
     }
 
     var visibilityPausePolicy: VisibilityPausePolicy {

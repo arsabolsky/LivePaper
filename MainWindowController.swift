@@ -86,6 +86,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var stopButton: NSButton!
     private var launchSwitch: NSButton!
     private var batteryPolicyPopup: NSPopUpButton!
+    private var batteryThresholdField: NSTextField!
+    private var batteryThresholdStepper: NSStepper!
     private var visibilityPolicyPopup: NSPopUpButton!
     private var syncDesktopSwitch: NSButton!
     private var rotationSwitch: NSButton!
@@ -452,12 +454,25 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createSettings() -> NSView {
         let settings = NSView(frame: NSRect(x: 20, y: 58, width: 460, height: 186))
 
-        let batteryLabel = NSTextField(labelWithString: "ui.batteryPause".localized + ":")
-        batteryLabel.font = NSFont.systemFont(ofSize: 12)
-        batteryLabel.frame = NSRect(x: 0, y: 156, width: 95, height: 20)
-        settings.addSubview(batteryLabel)
+        // Consistent left column for row labels, and a shared control column so
+        // the two policy pop-ups line up. Two groups — power then rotation —
+        // separated by a divider.
+        let labelX: CGFloat = 0
+        let labelW: CGFloat = 96
+        let controlX: CGFloat = 100
+        let popupW: CGFloat = 150
 
-        batteryPolicyPopup = NSPopUpButton(frame: NSRect(x: 98, y: 152, width: 170, height: 25), pullsDown: false)
+        func makeRowLabel(_ text: String, y: CGFloat) -> NSTextField {
+            let l = NSTextField(labelWithString: text)
+            l.font = NSFont.systemFont(ofSize: 12)
+            l.textColor = .labelColor
+            l.frame = NSRect(x: labelX, y: y, width: labelW, height: 20)
+            return l
+        }
+
+        // Row: Battery pause  [popup]      [threshold][stepper] %
+        settings.addSubview(makeRowLabel("ui.batteryPause".localized + ":", y: 152))
+        batteryPolicyPopup = NSPopUpButton(frame: NSRect(x: controlX, y: 148, width: popupW, height: 25), pullsDown: false)
         batteryPolicyPopup.addItems(withTitles: [
             "policy.battery.off".localized,
             "policy.battery.lowBattery".localized,
@@ -468,19 +483,39 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         batteryPolicyPopup.action = #selector(batteryPolicyChanged(_:))
         settings.addSubview(batteryPolicyPopup)
 
-        launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
-                                target: self, action: #selector(launchSwitchChanged))
-        launchSwitch.font = NSFont.systemFont(ofSize: 12)
-        launchSwitch.frame = NSRect(x: 280, y: 156, width: 150, height: 20)
-        launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
-        settings.addSubview(launchSwitch)
+        batteryThresholdField = NSTextField(frame: NSRect(x: 262, y: 150, width: 40, height: 22))
+        batteryThresholdField.font = NSFont.systemFont(ofSize: 12)
+        batteryThresholdField.alignment = .right
+        batteryThresholdField.target = self
+        batteryThresholdField.action = #selector(batteryThresholdChanged(_:))
+        let thFormatter = NumberFormatter()
+        thFormatter.allowsFloats = false
+        thFormatter.minimum = NSNumber(value: SettingsManager.lowBatteryThresholdRange.lowerBound)
+        thFormatter.maximum = NSNumber(value: SettingsManager.lowBatteryThresholdRange.upperBound)
+        batteryThresholdField.formatter = thFormatter
+        batteryThresholdField.integerValue = SettingsManager.shared.lowBatteryThresholdPercent
+        batteryThresholdField.toolTip = "ui.lowBatteryThreshold.tooltip".localized
+        settings.addSubview(batteryThresholdField)
 
-        let visibilityLabel = NSTextField(labelWithString: "ui.visibilityPause".localized + ":")
-        visibilityLabel.font = NSFont.systemFont(ofSize: 12)
-        visibilityLabel.frame = NSRect(x: 0, y: 128, width: 95, height: 20)
-        settings.addSubview(visibilityLabel)
+        batteryThresholdStepper = NSStepper(frame: NSRect(x: 303, y: 150, width: 16, height: 22))
+        batteryThresholdStepper.minValue = Double(SettingsManager.lowBatteryThresholdRange.lowerBound)
+        batteryThresholdStepper.maxValue = Double(SettingsManager.lowBatteryThresholdRange.upperBound)
+        batteryThresholdStepper.increment = 5
+        batteryThresholdStepper.valueWraps = false
+        batteryThresholdStepper.integerValue = SettingsManager.shared.lowBatteryThresholdPercent
+        batteryThresholdStepper.target = self
+        batteryThresholdStepper.action = #selector(batteryThresholdChanged(_:))
+        settings.addSubview(batteryThresholdStepper)
 
-        visibilityPolicyPopup = NSPopUpButton(frame: NSRect(x: 98, y: 124, width: 170, height: 25), pullsDown: false)
+        let pctLabel = NSTextField(labelWithString: "%")
+        pctLabel.font = NSFont.systemFont(ofSize: 12)
+        pctLabel.textColor = .secondaryLabelColor
+        pctLabel.frame = NSRect(x: 324, y: 152, width: 20, height: 20)
+        settings.addSubview(pctLabel)
+
+        // Row: Visibility pause [popup]      [✓ Launch at Login]
+        settings.addSubview(makeRowLabel("ui.visibilityPause".localized + ":", y: 124))
+        visibilityPolicyPopup = NSPopUpButton(frame: NSRect(x: controlX, y: 120, width: popupW, height: 25), pullsDown: false)
         visibilityPolicyPopup.addItems(withTitles: [
             "policy.visibility.off".localized,
             "policy.visibility.covered".localized,
@@ -490,42 +525,56 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         visibilityPolicyPopup.action = #selector(visibilityPolicyChanged(_:))
         settings.addSubview(visibilityPolicyPopup)
 
+        launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
+                                target: self, action: #selector(launchSwitchChanged))
+        launchSwitch.font = NSFont.systemFont(ofSize: 12)
+        launchSwitch.frame = NSRect(x: 262, y: 124, width: 190, height: 20)
+        launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
+        settings.addSubview(launchSwitch)
+
+        // Row: Sync static wallpaper (full width — long label)
         syncDesktopSwitch = NSButton(checkboxWithTitle: "ui.syncDesktopWallpaper".localized,
                                      target: self, action: #selector(syncDesktopSwitchChanged))
         syncDesktopSwitch.font = NSFont.systemFont(ofSize: 12)
-        syncDesktopSwitch.frame = NSRect(x: 275, y: 130, width: 180, height: 20)
+        syncDesktopSwitch.frame = NSRect(x: 0, y: 98, width: 450, height: 20)
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         syncDesktopSwitch.toolTip = "ui.syncDesktopWallpaper.tooltip".localized
         settings.addSubview(syncDesktopSwitch)
 
+        // ── Divider between power and rotation groups ────────────────────
+        let divider = NSBox(frame: NSRect(x: 0, y: 84, width: 450, height: 1))
+        divider.boxType = .separator
+        settings.addSubview(divider)
+
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
                                   target: self, action: #selector(rotationSwitchChanged))
         rotationSwitch.font = NSFont.systemFont(ofSize: 12)
-        rotationSwitch.frame = NSRect(x: 0, y: 104, width: 120, height: 20)
+        rotationSwitch.frame = NSRect(x: 0, y: 58, width: 130, height: 20)
         rotationSwitch.state = Screen_Config.default.isRotationEnabled ? .on : .off
         settings.addSubview(rotationSwitch)
 
         shuffleSwitch = NSButton(checkboxWithTitle: "ui.shuffleMode".localized,
                                  target: self, action: #selector(shuffleSwitchChanged))
         shuffleSwitch.font = NSFont.systemFont(ofSize: 12)
-        shuffleSwitch.frame = NSRect(x: 160, y: 104, width: 200, height: 20)
+        shuffleSwitch.frame = NSRect(x: 136, y: 58, width: 90, height: 20)
         shuffleSwitch.state = Screen_Config.default.isShuffleMode ? .on : .off
         settings.addSubview(shuffleSwitch)
 
         includeSubfoldersSwitch = NSButton(checkboxWithTitle: "ui.includeSubfolders".localized,
                                            target: self, action: #selector(includeSubfoldersChanged))
         includeSubfoldersSwitch.font = NSFont.systemFont(ofSize: 12)
-        includeSubfoldersSwitch.frame = NSRect(x: 0, y: 80, width: 180, height: 20)
+        includeSubfoldersSwitch.frame = NSRect(x: 232, y: 58, width: 210, height: 20)
         includeSubfoldersSwitch.state = Screen_Config.default.includeSubfolders ? .on : .off
         settings.addSubview(includeSubfoldersSwitch)
 
+        // Row: Interval [field][stepper] label
         intervalPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
         intervalPrefix.font = NSFont.systemFont(ofSize: 12)
         intervalPrefix.textColor = .labelColor
-        intervalPrefix.frame = NSRect(x: 0, y: 52, width: 120, height: 20)
+        intervalPrefix.frame = NSRect(x: 0, y: 30, width: 64, height: 20)
         settings.addSubview(intervalPrefix)
 
-        intervalField = NSTextField(frame: NSRect(x: 125, y: 52, width: 50, height: 22))
+        intervalField = NSTextField(frame: NSRect(x: 68, y: 30, width: 46, height: 22))
         intervalField.font = NSFont.systemFont(ofSize: 12)
         intervalField.alignment = .right
         intervalField.target = self
@@ -537,7 +586,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalField.integerValue = Screen_Config.default.rotationIntervalMinutes
         settings.addSubview(intervalField)
 
-        intervalStepper = NSStepper(frame: NSRect(x: 175, y: 52, width: 15, height: 22))
+        intervalStepper = NSStepper(frame: NSRect(x: 115, y: 30, width: 15, height: 22))
         intervalStepper.minValue = 1
         intervalStepper.maxValue = 1440
         intervalStepper.increment = 1
@@ -550,15 +599,17 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalLabel = NSTextField(labelWithString: formatInterval(minutes: Screen_Config.default.rotationIntervalMinutes))
         intervalLabel.font = NSFont.systemFont(ofSize: 11)
         intervalLabel.textColor = .secondaryLabelColor
-        intervalLabel.frame = NSRect(x: 200, y: 52, width: 250, height: 20)
+        intervalLabel.frame = NSRect(x: 138, y: 30, width: 160, height: 20)
         settings.addSubview(intervalLabel)
 
         folderCountLabel = NSTextField(labelWithString: "")
         folderCountLabel.font = NSFont.systemFont(ofSize: 11)
         folderCountLabel.textColor = .secondaryLabelColor
-        folderCountLabel.frame = NSRect(x: 0, y: 28, width: 430, height: 18)
+        folderCountLabel.frame = NSRect(x: 300, y: 32, width: 150, height: 16)
+        folderCountLabel.alignment = .right
         settings.addSubview(folderCountLabel)
-        
+
+        // Row: New screen policy [popup]
         newScreenPolicyLabel = NSTextField(labelWithString: "ui.newScreenPolicy".localized + ":")
         newScreenPolicyLabel.font = NSFont.systemFont(ofSize: 12)
         newScreenPolicyLabel.textColor = .labelColor
@@ -575,9 +626,24 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         newScreenPolicyPopUp.lastItem?.representedObject = New_Screen_Policy.blank.rawValue
         settings.addSubview(newScreenPolicyPopUp)
 
-
-
+        updateBatteryThresholdEnabled()
         return settings
+    }
+
+    /// The low-battery percentage only applies to the `.lowBattery` policy;
+    /// grey the threshold controls out for every other battery mode.
+    private func updateBatteryThresholdEnabled() {
+        let enabled = SettingsManager.shared.batteryPausePolicy == .lowBattery
+        batteryThresholdField?.isEnabled = enabled
+        batteryThresholdStepper?.isEnabled = enabled
+    }
+
+    @objc func batteryThresholdChanged(_ sender: NSControl) {
+        SettingsManager.shared.lowBatteryThresholdPercent = sender.integerValue
+        let clamped = SettingsManager.shared.lowBatteryThresholdPercent
+        batteryThresholdField.integerValue = clamped
+        batteryThresholdStepper.integerValue = clamped
+        wallpaperManager.onPausePolicyChanged()
     }
 
     @objc private func newScreenPolicyChanged(_ sender: NSPopUpButton) {
@@ -739,6 +805,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         let all = BatteryPausePolicy.allCases
         guard sender.indexOfSelectedItem >= 0, sender.indexOfSelectedItem < all.count else { return }
         SettingsManager.shared.batteryPausePolicy = all[sender.indexOfSelectedItem]
+        updateBatteryThresholdEnabled()
         wallpaperManager.onPausePolicyChanged()
     }
 
@@ -921,6 +988,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         batteryPolicyPopup.selectItem(at: BatteryPausePolicy.allCases.firstIndex(of: SettingsManager.shared.batteryPausePolicy) ?? 0)
         visibilityPolicyPopup.selectItem(at: VisibilityPausePolicy.allCases.firstIndex(of: SettingsManager.shared.visibilityPausePolicy) ?? 0)
+        batteryThresholdField.integerValue = SettingsManager.shared.lowBatteryThresholdPercent
+        batteryThresholdStepper.integerValue = SettingsManager.shared.lowBatteryThresholdPercent
+        updateBatteryThresholdEnabled()
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         intervalField.integerValue = currentInterval
         intervalStepper.integerValue = currentInterval

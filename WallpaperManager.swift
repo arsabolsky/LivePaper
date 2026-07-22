@@ -624,7 +624,8 @@ class WallpaperManager {
             batteryPolicy: SettingsManager.shared.batteryPausePolicy,
             visibilityPolicy: SettingsManager.shared.visibilityPausePolicy,
             occludedScreens: occludedScreens,
-            desktopFrontmost: desktopIsFrontmost())
+            desktopFrontmost: desktopIsFrontmost(),
+            lowBatteryThreshold: SettingsManager.shared.lowBatteryThresholdPercent)
     }
 
     func reconcile() {

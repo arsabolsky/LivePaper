@@ -27,6 +27,7 @@
 "ui.launchAtLogin" = "开机自启动";
 "ui.batteryPause" = "电量暂停";
 "ui.visibilityPause" = "可见性暂停";
+"ui.lowBatteryThreshold.tooltip" = "选择“电量低时”后，电量等于或低于此百分比（且未接电源）时暂停播放。";
 "ui.syncDesktopWallpaper" = "同步静态壁纸到锁屏和桌面";
 "ui.syncDesktopWallpaper.tooltip" = "开启后，樱花壁纸会将当前壁纸的静态副本推送给 macOS。图片立即生效；视频会截取当前帧。这样在应用不可见时，锁屏和桌面仍保持一致。";
 "ui.rotationInterval" = "轮播间隔";
