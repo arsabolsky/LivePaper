@@ -976,10 +976,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             }
 
             let isAutoPaused: Bool
-            switch wallpaperManager.statusSummary {
-            case .paused, .partiallyPaused:
-                isAutoPaused = !isCurrentlyPaused
-            case .playing, .stopped:
+            if let screen = activeScreen {
+                isAutoPaused = !isCurrentlyPaused && !wallpaperManager.reasons(for: screen).isEmpty
+            } else {
                 isAutoPaused = false
             }
             if let indicator = statusIndicator as? NSBox {

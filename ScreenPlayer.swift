@@ -18,12 +18,6 @@ class ScreenPlayer {
     /// WallpaperManager to auto-pause playback while the desktop is hidden.
     var onVisibilityChange: ((Bool) -> Void)?
 
-    /// Whether any part of this player's window is currently visible on screen.
-    /// Defaults to `true` until the window reports an occlusion state.
-    var isVisibleOnScreen: Bool {
-        window?.occlusionState.contains(.visible) ?? true
-    }
-
     init(fileURL: URL, screen: NSScreen) {
         self.screen = screen
         self.fileURL = fileURL
