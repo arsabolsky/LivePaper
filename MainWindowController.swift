@@ -709,11 +709,15 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         panel.directoryURL = suggestedPickerDirectoryURL()
 
         if #available(macOS 12.0, *) {
-            panel.allowedContentTypes = [
+            var types: [UTType] = [
                 .mpeg4Movie, .quickTimeMovie, .gif, .movie,
                 .png, .jpeg, .heic, .webP, .bmp, .tiff
             ]
-        } else {
+            // Without .folder in the allowed types, directories can be navigated
+            // into but not selected — breaking the "Pick Folder" button.
+            if panel.canChooseDirectories { types.append(.folder) }
+            panel.allowedContentTypes = types
+        } else if panel.canChooseFiles {
             panel.allowedFileTypes = ["mp4", "mov", "gif", "m4v",
                                        "png", "jpg", "jpeg", "heic", "webp", "bmp", "tiff"]
         }
