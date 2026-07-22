@@ -165,3 +165,20 @@ check the user runs; the automated proxy is `top` CPU% + `idlew`.
 ## Out of scope / follow-up
 
 - Free decode buffers when hidden (RAM) — parked by the user; own spec later.
+
+## Outcome (measured)
+
+- **Event-driven ordering (§1) + timer coalescing (§3): SHIPPED.** Idle wake-ups
+  went from continuously climbing to flat; the app no longer wakes ~1.3×/sec.
+  RAM ~34–41 MB (no regression).
+- **FPS cap (§2): REVERTED.** Measured no benefit on either metric with a 1080p
+  120fps clip on a 60Hz display:
+  - CPU: ~8.0% both with and without the cap.
+  - GPU power (`sudo powermetrics --samplers gpu_power`): cap-ON ~842 mW avg vs
+    cap-OFF ~881 mW avg — within sample noise (cap-ON alone ranged 796–882 mW),
+    GPU active residency ~54% either way.
+  - Root cause: on Apple Silicon, H.264 decode is hardware and CoreAnimation
+    already composites at the display's 60Hz, so capping the composition rate
+    removes no real work; the "wasted" source frames were already cheap. Tasks 1
+    (`PlaybackTuning`) and 2 (ScreenPlayer wiring) were reverted per the plan's
+    go/no-go criterion.
