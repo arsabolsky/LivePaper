@@ -28,6 +28,10 @@
 "ui.notSet" = "None";
 "ui.launchAtLogin" = "Launch at Login";
 "ui.pauseWhenInvisible" = "Battery Saver";
+"ui.pauseWhenCovered" = "Pause When Covered";
+"ui.pauseWhenCovered.tooltip" = "When enabled, a screen's live wallpaper pauses while its desktop is fully covered by other windows, and resumes the moment the desktop becomes visible again. Saves CPU and battery.";
+"ui.pauseUnderThermal" = "Thermal Pause";
+"ui.pauseUnderThermal.tooltip" = "When enabled, all playback pauses while the Mac is under serious or critical thermal pressure, and resumes once it cools down. Independent of Battery Saver.";
 "ui.syncDesktopWallpaper" = "Sync Static Wallpaper to Lock Screen & Desktop";
 "ui.syncDesktopWallpaper.tooltip" = "When enabled, LivePaper pushes a static copy of the current wallpaper to macOS. Images apply immediately; videos snapshot the current frame. This keeps the lock screen and desktop consistent when the app is not visible.";
 "ui.rotationInterval" = "Interval";
@@ -79,6 +83,8 @@
 "menu.resume" = "Resume";
 "menu.pauseAll" = "Pause Playback";
 "menu.autoPause" = "Battery Saver";
+"menu.pauseWhenCovered" = "Pause When Covered";
+"menu.pauseUnderThermal" = "Thermal Pause";
 "menu.nextWallpaper" = "Next Wallpaper";
 "menu.stopWallpaper" = "Clear Wallpaper";
 "menu.pauseScreen" = "Per-Screen Pause";

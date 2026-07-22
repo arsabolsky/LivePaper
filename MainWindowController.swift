@@ -86,6 +86,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var stopButton: NSButton!
     private var launchSwitch: NSButton!
     private var pauseSwitch: NSButton!
+    private var pauseCoveredSwitch: NSButton!
+    private var thermalSwitch: NSButton!
     private var syncDesktopSwitch: NSButton!
     private var rotationSwitch: NSButton!
     private var shuffleSwitch: NSButton!
@@ -461,17 +463,33 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         pauseSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenInvisible".localized,
                                target: self, action: #selector(pauseSwitchChanged))
         pauseSwitch.font = NSFont.systemFont(ofSize: 12)
-        pauseSwitch.frame = NSRect(x: 160, y: 156, width: 200, height: 20)
+        pauseSwitch.frame = NSRect(x: 160, y: 156, width: 130, height: 20)
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         settings.addSubview(pauseSwitch)
+
+        thermalSwitch = NSButton(checkboxWithTitle: "ui.pauseUnderThermal".localized,
+                                 target: self, action: #selector(thermalSwitchChanged))
+        thermalSwitch.font = NSFont.systemFont(ofSize: 12)
+        thermalSwitch.frame = NSRect(x: 300, y: 156, width: 160, height: 20)
+        thermalSwitch.state = SettingsManager.shared.pauseUnderThermalPressure ? .on : .off
+        thermalSwitch.toolTip = "ui.pauseUnderThermal.tooltip".localized
+        settings.addSubview(thermalSwitch)
 
         syncDesktopSwitch = NSButton(checkboxWithTitle: "ui.syncDesktopWallpaper".localized,
                                      target: self, action: #selector(syncDesktopSwitchChanged))
         syncDesktopSwitch.font = NSFont.systemFont(ofSize: 12)
-        syncDesktopSwitch.frame = NSRect(x: 0, y: 130, width: 380, height: 20)
+        syncDesktopSwitch.frame = NSRect(x: 0, y: 130, width: 220, height: 20)
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         syncDesktopSwitch.toolTip = "ui.syncDesktopWallpaper.tooltip".localized
         settings.addSubview(syncDesktopSwitch)
+
+        pauseCoveredSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenCovered".localized,
+                                      target: self, action: #selector(pauseCoveredSwitchChanged))
+        pauseCoveredSwitch.font = NSFont.systemFont(ofSize: 12)
+        pauseCoveredSwitch.frame = NSRect(x: 230, y: 130, width: 230, height: 20)
+        pauseCoveredSwitch.state = SettingsManager.shared.pauseWhenOccluded ? .on : .off
+        pauseCoveredSwitch.toolTip = "ui.pauseWhenCovered.tooltip".localized
+        settings.addSubview(pauseCoveredSwitch)
 
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
                                   target: self, action: #selector(rotationSwitchChanged))
@@ -715,6 +733,16 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         wallpaperManager.checkPlaybackState()
     }
 
+    @objc func pauseCoveredSwitchChanged(_ sender: NSButton) {
+        SettingsManager.shared.pauseWhenOccluded = (sender.state == .on)
+        wallpaperManager.applyOcclusionPolicyChange()
+    }
+
+    @objc func thermalSwitchChanged(_ sender: NSButton) {
+        SettingsManager.shared.pauseUnderThermalPressure = (sender.state == .on)
+        wallpaperManager.checkPlaybackState()
+    }
+
     @objc func syncDesktopSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.syncDesktopWallpaper = (sender.state == .on)
     }
@@ -886,6 +914,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         let currentInterval = config.rotationIntervalMinutes
 
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
+        pauseCoveredSwitch.state = SettingsManager.shared.pauseWhenOccluded ? .on : .off
+        thermalSwitch.state = SettingsManager.shared.pauseUnderThermalPressure ? .on : .off
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         intervalField.integerValue = currentInterval
         intervalStepper.integerValue = currentInterval

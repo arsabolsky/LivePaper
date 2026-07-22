@@ -11,6 +11,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var pauseMenu: NSMenu!
     var pauseAllItem: NSMenuItem!
     var autoPauseItem: NSMenuItem!
+    var pauseWhenCoveredItem: NSMenuItem!
+    var thermalPauseItem: NSMenuItem!
     var nextMenuItem: NSMenuItem!
     var nextWallpaperMenu: NSMenu!
     var languageMenu: NSMenu!
@@ -66,6 +68,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         autoPauseItem = NSMenuItem(title: "menu.autoPause".localized, action: #selector(toggleAutoPause), keyEquivalent: "")
         autoPauseItem.target = self
         menu.addItem(autoPauseItem)
+
+        pauseWhenCoveredItem = NSMenuItem(title: "menu.pauseWhenCovered".localized, action: #selector(togglePauseWhenCovered), keyEquivalent: "")
+        pauseWhenCoveredItem.target = self
+        menu.addItem(pauseWhenCoveredItem)
+
+        thermalPauseItem = NSMenuItem(title: "menu.pauseUnderThermal".localized, action: #selector(togglePauseUnderThermal), keyEquivalent: "")
+        thermalPauseItem.target = self
+        menu.addItem(thermalPauseItem)
 
         languageMenu = NSMenu(title: "menu.language".localized)
         let languageItem = NSMenuItem(title: "menu.language".localized, action: nil, keyEquivalent: "")
@@ -287,6 +297,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow.updateUI()
     }
 
+    @objc func togglePauseWhenCovered() {
+        SettingsManager.shared.pauseWhenOccluded = !SettingsManager.shared.pauseWhenOccluded
+        wallpaperManager.applyOcclusionPolicyChange()
+        updatePauseWhenCoveredItem()
+        mainWindow.updateUI()
+    }
+
+    private func updatePauseWhenCoveredItem() {
+        pauseWhenCoveredItem.state = SettingsManager.shared.pauseWhenOccluded ? .on : .off
+    }
+
+    @objc func togglePauseUnderThermal() {
+        SettingsManager.shared.pauseUnderThermalPressure = !SettingsManager.shared.pauseUnderThermalPressure
+        wallpaperManager.checkPlaybackState()
+        updateThermalPauseItem()
+        mainWindow.updateUI()
+    }
+
+    private func updateThermalPauseItem() {
+        thermalPauseItem.state = SettingsManager.shared.pauseUnderThermalPressure ? .on : .off
+    }
+
     private func rebuildPauseMenu() {
         pauseMenu.removeAllItems()
 
@@ -403,5 +435,7 @@ extension AppDelegate: NSMenuDelegate {
         rebuildLanguageMenu()
         updatePauseItem()
         updateAutoPauseItem()
+        updatePauseWhenCoveredItem()
+        updateThermalPauseItem()
     }
 }

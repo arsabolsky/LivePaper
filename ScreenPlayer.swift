@@ -8,8 +8,21 @@ class ScreenPlayer {
     private var playerLayer: AVPlayerLayer?
     private var imageView: NSImageView?
     private var endObserver: Any?
+    private var occlusionObserver: Any?
     private let screen: NSScreen
     private var fileURL: URL
+
+    /// Invoked on the main queue whenever the window's visibility changes.
+    /// `true` means at least part of the wallpaper is visible to the user;
+    /// `false` means it is fully covered by other windows. Used by
+    /// WallpaperManager to auto-pause playback while the desktop is hidden.
+    var onVisibilityChange: ((Bool) -> Void)?
+
+    /// Whether any part of this player's window is currently visible on screen.
+    /// Defaults to `true` until the window reports an occlusion state.
+    var isVisibleOnScreen: Bool {
+        window?.occlusionState.contains(.visible) ?? true
+    }
 
     init(fileURL: URL, screen: NSScreen) {
         self.screen = screen
@@ -88,6 +101,15 @@ class ScreenPlayer {
         contentView.autoresizingMask = [.width, .height]
         contentView.layer?.backgroundColor = NSColor.black.cgColor
         window.contentView = contentView
+
+        occlusionObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didChangeOcclusionStateNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, let window = self.window else { return }
+            self.onVisibilityChange?(window.occlusionState.contains(.visible))
+        }
     }
 
     private func setupContent() {
@@ -142,10 +164,13 @@ class ScreenPlayer {
         window?.orderBack(nil)
     }
 
-    func resumePlayback() {
+    /// Resumes playback. When `time` is provided the player seeks there first so
+    /// it lands in frame-sync with its sync-group peers; otherwise it resumes
+    /// from where it paused. Images have no player and are a no-op.
+    func resumePlayback(alignedTo time: CMTime? = nil) {
         guard let player = avPlayer else { return }
-        let currentTime = player.currentTime()
-        player.seek(to: currentTime) { [weak self] _ in
+        let target = time ?? player.currentTime()
+        player.seek(to: target) { [weak self] _ in
             self?.avPlayer?.play()
             self?.avPlayer?.rate = 1.0
         }
@@ -169,6 +194,9 @@ class ScreenPlayer {
         avPlayer?.pause()
         if let obs = endObserver { NotificationCenter.default.removeObserver(obs) }
         endObserver = nil
+        if let obs = occlusionObserver { NotificationCenter.default.removeObserver(obs) }
+        occlusionObserver = nil
+        onVisibilityChange = nil
         playerLayer?.removeFromSuperlayer()
         playerLayer = nil
         avPlayer = nil

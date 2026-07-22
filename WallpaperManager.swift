@@ -19,6 +19,9 @@ class WallpaperManager {
     private let keepVisibleInterval: TimeInterval = 0.75
     private let lowBatteryPauseThreshold = 20
     private var pausedScreens: Set<String> = []
+    /// Screens whose wallpaper window is currently fully covered by other windows.
+    /// Tracked continuously; only acted upon when `pauseWhenOccluded` is enabled.
+    private var occludedScreens: Set<String> = []
 
     private var playlistsByScreen: [String: [URL]] = [:]
     private var playlistIndexesByScreen: [String: Int] = [:]
@@ -111,6 +114,12 @@ class WallpaperManager {
             name: Notification.Name("com.apple.screensaver.didstart"),
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(checkPlaybackState),
+            name: ProcessInfo.thermalStateDidChangeNotification,
+            object: nil
+        )
         startBatteryCheckTimer()
     }
 
@@ -134,16 +143,12 @@ class WallpaperManager {
     }
 
     @objc func checkPlaybackState() {
-        guard SettingsManager.shared.pauseWhenInvisible else {
-            if isPausedInternally {
-                isPausedInternally = false
-                if !isPaused { resumeAll() }
-                NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-            }
-            return
-        }
+        // Battery Saver and Thermal protection are independent opt-in features.
+        // Either one, when enabled and triggered, pauses all playback internally.
+        let batterySaverPause = SettingsManager.shared.pauseWhenInvisible && shouldPauseForLowBattery()
+        let thermalPause = SettingsManager.shared.pauseUnderThermalPressure && shouldPauseForThermal()
 
-        if shouldPauseForLowBattery() {
+        if batterySaverPause || thermalPause {
             if !isPausedInternally {
                 isPausedInternally = true
                 pauseAll()
@@ -504,6 +509,7 @@ class WallpaperManager {
             playlistIndexesByScreen.removeValue(forKey: removedId)
             stopIndependentTimer(forScreenID: removedId)
             pausedScreens.remove(removedId)
+            occludedScreens.remove(removedId)
             clearTransientDesktopSnapshot(for: removedId)
             // If this was the last synced screen, stop sync group timer
             let remainingSynced = NSScreen.screens
@@ -645,7 +651,7 @@ class WallpaperManager {
     func resumeScreen(_ screen: NSScreen) {
         let id = SettingsManager.screenIdentifier(screen)
         pausedScreens.remove(id)
-        players[id]?.resumePlayback()
+        resumePlayerAligned(id)
         players[id]?.window?.orderBack(nil)
         players[id]?.window?.orderFrontRegardless()
     }
@@ -653,6 +659,86 @@ class WallpaperManager {
     func isScreenPaused(_ screen: NSScreen) -> Bool {
         let id = SettingsManager.screenIdentifier(screen)
         return pausedScreens.contains(id)
+    }
+
+    // MARK: - Pause-when-occluded
+
+    /// Single source of truth for whether a given screen's playback should be
+    /// paused right now, combining every pause condition: global manual pause,
+    /// internal (battery/sleep) pause, per-screen manual pause, and — when the
+    /// feature is enabled — the screen being covered by other windows.
+    private func shouldPauseScreen(_ id: String) -> Bool {
+        if isPaused || isPausedInternally { return true }
+        if pausedScreens.contains(id) { return true }
+        if SettingsManager.shared.pauseWhenOccluded && occludedScreens.contains(id) { return true }
+        return false
+    }
+
+    // MARK: - Video sync alignment
+
+    /// The furthest-along playback time among synced screens that are currently
+    /// active (not paused for any reason). A resuming screen seeks to this so it
+    /// rejoins its peers in frame-sync instead of drifting behind after a pause.
+    /// Returns nil when there is no other active synced video to align to.
+    private func syncGroupLeaderTime(excluding excludedID: String? = nil) -> CMTime? {
+        var leader: CMTime?
+        for (id, player) in players {
+            if id == excludedID { continue }
+            guard SettingsManager.shared.screenConfig(for: id).isSynced else { continue }
+            guard !shouldPauseScreen(id) else { continue }
+            guard let t = player.currentPlaybackTime() else { continue }
+            if let current = leader {
+                if t.seconds > current.seconds { leader = t }
+            } else {
+                leader = t
+            }
+        }
+        return leader
+    }
+
+    /// Resumes a single screen, aligning it to its sync group's leader time when
+    /// it belongs to one. Non-synced screens resume from where they left off.
+    private func resumePlayerAligned(_ id: String) {
+        guard let player = players[id] else { return }
+        if SettingsManager.shared.screenConfig(for: id).isSynced,
+           let leaderTime = syncGroupLeaderTime(excluding: id) {
+            player.resumePlayback(alignedTo: leaderTime)
+        } else {
+            player.resumePlayback()
+        }
+    }
+
+    /// Called by a ScreenPlayer when its window's visibility changes.
+    private func handleVisibilityChange(screenID id: String, visible: Bool) {
+        let wasOccluded = occludedScreens.contains(id)
+        if visible {
+            occludedScreens.remove(id)
+        } else {
+            occludedScreens.insert(id)
+        }
+        guard wasOccluded != !visible else { return }
+        guard SettingsManager.shared.pauseWhenOccluded, let player = players[id] else { return }
+
+        if shouldPauseScreen(id) {
+            player.pausePlayback()
+        } else {
+            resumePlayerAligned(id)
+        }
+        NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
+    }
+
+    /// Re-evaluates every screen against the current pause-when-occluded setting.
+    /// Called when the user toggles the option so playback catches up immediately.
+    func applyOcclusionPolicyChange() {
+        guard isActive else { return }
+        for (id, player) in players {
+            if shouldPauseScreen(id) {
+                player.pausePlayback()
+            } else {
+                resumePlayerAligned(id)
+            }
+        }
+        NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
     }
 
     // MARK: - Sync group management (Task 6.3)
@@ -761,7 +847,7 @@ class WallpaperManager {
             currentFiles[sid] = nextURL
             if let player = players[sid] {
                 player.updateMedia(url: nextURL)
-                if isPaused || isPausedInternally || pausedScreens.contains(sid) {
+                if shouldPauseScreen(sid) {
                     player.pausePlayback()
                 }
             }
@@ -885,6 +971,7 @@ class WallpaperManager {
         players.removeAll()
         currentFiles.removeAll()
         pausedScreens.removeAll()
+        occludedScreens.removeAll()
         playlistsByScreen.removeAll()
         playlistIndexesByScreen.removeAll()
         clearAllTransientDesktopSnapshots()
@@ -902,6 +989,7 @@ class WallpaperManager {
         players.removeValue(forKey: id)
         currentFiles.removeValue(forKey: id)
         pausedScreens.remove(id)
+        occludedScreens.remove(id)
         playlistsByScreen.removeValue(forKey: id)
         playlistIndexesByScreen.removeValue(forKey: id)
         stopIndependentTimer(forScreenID: id)
@@ -931,7 +1019,7 @@ class WallpaperManager {
         currentFiles[id] = nextURL
         if let player = players[id] {
             player.updateMedia(url: nextURL)
-            if isPaused || isPausedInternally {
+            if shouldPauseScreen(id) {
                 player.pausePlayback()
             }
         }
@@ -959,7 +1047,7 @@ class WallpaperManager {
         currentFiles[id] = nextURL
         if let player = players[id] {
             player.updateMedia(url: nextURL)
-            if isPaused || isPausedInternally {
+            if shouldPauseScreen(id) {
                 player.pausePlayback()
             }
         }
@@ -1029,7 +1117,25 @@ class WallpaperManager {
             player.updateMedia(url: url)
         } else {
             let player = ScreenPlayer(fileURL: url, screen: screen)
+            player.onVisibilityChange = { [weak self] visible in
+                self?.handleVisibilityChange(screenID: id, visible: visible)
+            }
             players[id] = player
+            // Seed the initial visibility state; the window may already be
+            // covered when the player is created (e.g. app launched behind a
+            // full-screen window). We read the window's occlusion state
+            // directly rather than assuming visible, so playback starts paused
+            // if the desktop is already hidden.
+            if player.isVisibleOnScreen {
+                occludedScreens.remove(id)
+            } else {
+                occludedScreens.insert(id)
+            }
+            // A freshly created ScreenPlayer starts playing on setup, so honor
+            // every pause condition (occlusion, manual, battery/thermal) now.
+            if shouldPauseScreen(id) {
+                player.pausePlayback()
+            }
         }
     }
 
@@ -1069,6 +1175,19 @@ class WallpaperManager {
         return !battery.isCharging && battery.level <= lowBatteryPauseThreshold
     }
 
+    /// Pauses playback under thermal pressure. At `.serious` the system already
+    /// has fans at max and is throttling the CPU/GPU; a video wallpaper is pure
+    /// discretionary load at that point, so we stop it to help the machine cool
+    /// down. Recovers automatically once the state drops back to `.fair`/`.nominal`.
+    private func shouldPauseForThermal() -> Bool {
+        switch ProcessInfo.processInfo.thermalState {
+        case .serious, .critical:
+            return true
+        default:
+            return false
+        }
+    }
+
     private func currentBatterySnapshot() -> (level: Int, isCharging: Bool)? {
         guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
               let list = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef],
@@ -1092,9 +1211,9 @@ class WallpaperManager {
     }
 
     private func resumeAll() {
-        players.forEach { id, player in
-            guard !pausedScreens.contains(id) else { return }
-            player.resumePlayback()
+        players.forEach { id, _ in
+            guard !shouldPauseScreen(id) else { return }
+            resumePlayerAligned(id)
         }
     }
 

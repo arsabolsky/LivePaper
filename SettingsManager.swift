@@ -10,6 +10,8 @@ class SettingsManager {
     // MARK: - UserDefaults Keys (retained)
     private let launchKey                = "livepaper_launch_at_login"
     private let pauseWhenInvisibleKey    = "livepaper_pause_when_invisible"
+    private let pauseWhenOccludedKey     = "livepaper_pause_when_occluded"
+    private let pauseUnderThermalKey     = "livepaper_pause_under_thermal"
     private let historyKey               = "livepaper_history"
     private let languageKey              = "livepaper_language"
     private let onboardingCompletedKey   = "livepaper_onboarding_completed"
@@ -116,6 +118,22 @@ class SettingsManager {
     var pauseWhenInvisible: Bool {
         get { defaults.bool(forKey: pauseWhenInvisibleKey) }
         set { defaults.set(newValue, forKey: pauseWhenInvisibleKey) }
+    }
+
+    /// When enabled, a screen's wallpaper playback pauses while its window is
+    /// fully covered by other windows (i.e. the desktop is not visible), and
+    /// resumes as soon as the desktop becomes visible again. Evaluated per screen.
+    var pauseWhenOccluded: Bool {
+        get { defaults.bool(forKey: pauseWhenOccludedKey) }
+        set { defaults.set(newValue, forKey: pauseWhenOccludedKey) }
+    }
+
+    /// When enabled, all playback pauses while the machine is under serious or
+    /// critical thermal pressure and resumes once it cools down. Opt-in and
+    /// independent of Battery Saver (`pauseWhenInvisible`).
+    var pauseUnderThermalPressure: Bool {
+        get { defaults.bool(forKey: pauseUnderThermalKey) }
+        set { defaults.set(newValue, forKey: pauseUnderThermalKey) }
     }
 
     var syncDesktopWallpaper: Bool {
