@@ -18,7 +18,7 @@ class WallpaperManager {
 
     private var keepVisibleTimer: Timer?
     private var batteryCheckTimer: Timer?
-    private let keepVisibleInterval: TimeInterval = 0.75
+    private let orderBackstopInterval: TimeInterval = 8
 
     /// Global manual-pause state (kept for callers/UI).
     var isPaused: Bool { manualAllPaused }
@@ -117,7 +117,7 @@ class WallpaperManager {
     }
 
     deinit {
-        stopKeepVisibleTimer()
+        stopOrderBackstopTimer()
         stopBatteryCheckTimer()
         stopSyncGroupTimer()
         for (_, timer) in independentTimersByScreen { timer.invalidate() }
@@ -292,7 +292,7 @@ class WallpaperManager {
             }
 
             reconcile()
-            startKeepVisibleTimer()
+            startOrderBackstopTimer()
             // Start appropriate timer
             if updatedConfig.isSynced {
                 startSyncGroupTimerIfNeeded()
@@ -530,7 +530,7 @@ class WallpaperManager {
         }
 
         reconcile()
-        showAll()
+        reassertWindowOrder()
 
         // Step 5: Resize existing players whose frame changed
         for screen in NSScreen.screens {
@@ -640,6 +640,11 @@ class WallpaperManager {
         guard isActive else { coordinator.reset(); return }
         let reasonsByScreen = PauseEvaluator.reasonsByScreen(currentPauseInputs())
         let changed = coordinator.reconcile(reasonsByScreen: reasonsByScreen, control: self)
+        // Re-assert z-order on every reconcile — reconcile already fires on the
+        // events that can disturb ordering (space change, app activation, wake,
+        // screen change), so this replaces the old periodic poll. orderBack on a
+        // correctly-ordered window is a near-noop.
+        reassertWindowOrder()
         if changed {
             NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
         }
@@ -847,7 +852,7 @@ class WallpaperManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.createAllPlayers(for: screens)
             self?.reconcile()
-            self?.startKeepVisibleTimer()
+            self?.startOrderBackstopTimer()
         }
     }
 
@@ -902,7 +907,7 @@ class WallpaperManager {
                 }
             }
             self.reconcile()
-            self.startKeepVisibleTimer()
+            self.startOrderBackstopTimer()
         }
     }
 
@@ -915,7 +920,7 @@ class WallpaperManager {
         manualAllPaused = false
         systemAsleep = false
         coordinator.reset()
-        stopKeepVisibleTimer()
+        stopOrderBackstopTimer()
         stopSyncGroupTimer()
         for (_, timer) in independentTimersByScreen { timer.invalidate() }
         independentTimersByScreen.removeAll()
@@ -950,7 +955,7 @@ class WallpaperManager {
         // Restore original system desktop wallpaper for this screen
         restoreOriginalDesktop(for: screen, screenID: id)
         originalDesktopURLsByScreen.removeValue(forKey: id)
-        if players.isEmpty { stopKeepVisibleTimer() }
+        if players.isEmpty { stopOrderBackstopTimer() }
     }
 
     private func restoreOriginalDesktop(for screen: NSScreen, screenID: String) {
@@ -1084,21 +1089,26 @@ class WallpaperManager {
         }
     }
 
-    private func showAll() {
+    /// Re-assert desktop-level z-order for every visible player window. Called
+    /// on ordering-relevant events (via reconcile) and by a slow backstop timer,
+    /// replacing the old 0.75s poll.
+    private func reassertWindowOrder() {
         players.forEach { id, player in
             if coordinator.applied[id] == .hidden { return }
             player.window?.orderBack(nil)
         }
     }
 
-    private func startKeepVisibleTimer() {
+    private func startOrderBackstopTimer() {
         keepVisibleTimer?.invalidate()
-        keepVisibleTimer = Timer.scheduledTimer(withTimeInterval: keepVisibleInterval, repeats: true) { [weak self] _ in
-            self?.showAll()
+        let timer = Timer.scheduledTimer(withTimeInterval: orderBackstopInterval, repeats: true) { [weak self] _ in
+            self?.reassertWindowOrder()
         }
+        timer.tolerance = 2
+        keepVisibleTimer = timer
     }
 
-    private func stopKeepVisibleTimer() {
+    private func stopOrderBackstopTimer() {
         keepVisibleTimer?.invalidate()
         keepVisibleTimer = nil
     }
