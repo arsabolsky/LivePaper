@@ -9,13 +9,18 @@ class SettingsManager {
 
     // MARK: - UserDefaults Keys (retained)
     private let launchKey                = "livepaper_launch_at_login"
-    private let pauseWhenInvisibleKey    = "livepaper_pause_when_invisible"
-    private let pauseWhenOccludedKey     = "livepaper_pause_when_occluded"
-    private let pauseUnderThermalKey     = "livepaper_pause_under_thermal"
     private let historyKey               = "livepaper_history"
     private let languageKey              = "livepaper_language"
     private let onboardingCompletedKey   = "livepaper_onboarding_completed"
     private let syncDesktopWallpaperKey  = "livepaper_sync_desktop_wallpaper"
+
+    // MARK: - UserDefaults Keys (pause policies)
+    private let batteryPausePolicyKey    = "livepaper_battery_pause_policy"
+    private let visibilityPausePolicyKey = "livepaper_visibility_pause_policy"
+    // Legacy keys, migrated away in migratePausePoliciesIfNeeded().
+    private let legacyPauseInvisibleKey  = "livepaper_pause_when_invisible"
+    private let legacyPauseOccludedKey   = "livepaper_pause_when_occluded"
+    private let legacyPauseThermalKey    = "livepaper_pause_under_thermal"
 
     // MARK: - UserDefaults Keys (new)
     private let screenRegistryKey        = "livepaper_screen_registry"
@@ -115,26 +120,6 @@ class SettingsManager {
         }
     }
 
-    var pauseWhenInvisible: Bool {
-        get { defaults.bool(forKey: pauseWhenInvisibleKey) }
-        set { defaults.set(newValue, forKey: pauseWhenInvisibleKey) }
-    }
-
-    /// When enabled, a screen's wallpaper playback pauses while its window is
-    /// fully covered by other windows (i.e. the desktop is not visible), and
-    /// resumes as soon as the desktop becomes visible again. Evaluated per screen.
-    var pauseWhenOccluded: Bool {
-        get { defaults.bool(forKey: pauseWhenOccludedKey) }
-        set { defaults.set(newValue, forKey: pauseWhenOccludedKey) }
-    }
-
-    /// When enabled, all playback pauses while the machine is under serious or
-    /// critical thermal pressure and resumes once it cools down. Opt-in and
-    /// independent of Battery Saver (`pauseWhenInvisible`).
-    var pauseUnderThermalPressure: Bool {
-        get { defaults.bool(forKey: pauseUnderThermalKey) }
-        set { defaults.set(newValue, forKey: pauseUnderThermalKey) }
-    }
 
     var syncDesktopWallpaper: Bool {
         get {
@@ -142,6 +127,41 @@ class SettingsManager {
             return defaults.bool(forKey: syncDesktopWallpaperKey)
         }
         set { defaults.set(newValue, forKey: syncDesktopWallpaperKey) }
+    }
+
+    var batteryPausePolicy: BatteryPausePolicy {
+        get {
+            guard let raw = defaults.string(forKey: batteryPausePolicyKey),
+                  let p = BatteryPausePolicy(rawValue: raw) else { return .off }
+            return p
+        }
+        set { defaults.set(newValue.rawValue, forKey: batteryPausePolicyKey) }
+    }
+
+    var visibilityPausePolicy: VisibilityPausePolicy {
+        get {
+            guard let raw = defaults.string(forKey: visibilityPausePolicyKey),
+                  let p = VisibilityPausePolicy(rawValue: raw) else { return .off }
+            return p
+        }
+        set { defaults.set(newValue.rawValue, forKey: visibilityPausePolicyKey) }
+    }
+
+    /// One-time translation from the legacy boolean toggles to the new policy
+    /// enums. A new key that already exists always wins; legacy keys are always
+    /// removed. Safe to call on every launch.
+    func migratePausePoliciesIfNeeded() {
+        if defaults.object(forKey: batteryPausePolicyKey) == nil,
+           defaults.object(forKey: legacyPauseInvisibleKey) != nil {
+            batteryPausePolicy = defaults.bool(forKey: legacyPauseInvisibleKey) ? .lowBattery : .off
+        }
+        if defaults.object(forKey: visibilityPausePolicyKey) == nil,
+           defaults.object(forKey: legacyPauseOccludedKey) != nil {
+            visibilityPausePolicy = defaults.bool(forKey: legacyPauseOccludedKey) ? .covered : .off
+        }
+        defaults.removeObject(forKey: legacyPauseInvisibleKey)
+        defaults.removeObject(forKey: legacyPauseOccludedKey)
+        defaults.removeObject(forKey: legacyPauseThermalKey)
     }
 
     var wallpaperHistory: [String] {

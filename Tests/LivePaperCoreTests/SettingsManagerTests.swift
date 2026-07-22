@@ -56,4 +56,51 @@ final class SettingsManagerTests: XCTestCase {
         let config = settings.screenConfig(for: "nonexistent_screen")
         XCTAssertEqual(config, Screen_Config.default)
     }
+
+    func testPausePolicyDefaultsAreOff() {
+        XCTAssertEqual(settings.batteryPausePolicy, .off)
+        XCTAssertEqual(settings.visibilityPausePolicy, .off)
+    }
+
+    func testPausePolicyRoundTrip() {
+        settings.batteryPausePolicy = .followLowPowerMode
+        settings.visibilityPausePolicy = .unfocused
+        XCTAssertEqual(settings.batteryPausePolicy, .followLowPowerMode)
+        XCTAssertEqual(settings.visibilityPausePolicy, .unfocused)
+    }
+
+    func testMigrationTranslatesOldBatterySaverToLowBattery() {
+        defaults.set(true, forKey: "livepaper_pause_when_invisible")
+        settings.migratePausePoliciesIfNeeded()
+        XCTAssertEqual(settings.batteryPausePolicy, .lowBattery)
+        XCTAssertNil(defaults.object(forKey: "livepaper_pause_when_invisible"))
+    }
+
+    func testMigrationTranslatesOldOcclusionToCovered() {
+        defaults.set(true, forKey: "livepaper_pause_when_occluded")
+        settings.migratePausePoliciesIfNeeded()
+        XCTAssertEqual(settings.visibilityPausePolicy, .covered)
+        XCTAssertNil(defaults.object(forKey: "livepaper_pause_when_occluded"))
+    }
+
+    func testMigrationFalseOldKeysBecomeOff() {
+        defaults.set(false, forKey: "livepaper_pause_when_invisible")
+        defaults.set(false, forKey: "livepaper_pause_when_occluded")
+        settings.migratePausePoliciesIfNeeded()
+        XCTAssertEqual(settings.batteryPausePolicy, .off)
+        XCTAssertEqual(settings.visibilityPausePolicy, .off)
+    }
+
+    func testMigrationDeletesThermalKey() {
+        defaults.set(true, forKey: "livepaper_pause_under_thermal")
+        settings.migratePausePoliciesIfNeeded()
+        XCTAssertNil(defaults.object(forKey: "livepaper_pause_under_thermal"))
+    }
+
+    func testMigrationDoesNotClobberExistingNewPolicy() {
+        settings.batteryPausePolicy = .onBattery
+        defaults.set(true, forKey: "livepaper_pause_when_invisible") // stale old key
+        settings.migratePausePoliciesIfNeeded()
+        XCTAssertEqual(settings.batteryPausePolicy, .onBattery) // new key wins, not overwritten
+    }
 }
