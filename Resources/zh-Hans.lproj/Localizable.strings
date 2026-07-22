@@ -23,14 +23,10 @@
 "ui.playing" = "正在运行";
 "ui.paused" = "已暂停";
 "ui.pausedManual" = "已暂停（手动）";
-"ui.pausedAuto" = "已暂停（省电模式）";
 "ui.notSet" = "无";
 "ui.launchAtLogin" = "开机自启动";
-"ui.pauseWhenInvisible" = "省电模式";
-"ui.pauseWhenCovered" = "被遮挡时暂停";
-"ui.pauseWhenCovered.tooltip" = "开启后，当某个屏幕的桌面被其他窗口完全遮挡时，该屏幕的动态壁纸会暂停播放，桌面重新可见时立即恢复。可节省 CPU 和电量。";
-"ui.pauseUnderThermal" = "过热时暂停";
-"ui.pauseUnderThermal.tooltip" = "开启后，当 Mac 处于严重或临界高温状态时，所有播放都会暂停，降温后自动恢复。与省电模式相互独立。";
+"ui.batteryPause" = "电量暂停";
+"ui.visibilityPause" = "可见性暂停";
 "ui.syncDesktopWallpaper" = "同步静态壁纸到锁屏和桌面";
 "ui.syncDesktopWallpaper.tooltip" = "开启后，樱花壁纸会将当前壁纸的静态副本推送给 macOS。图片立即生效；视频会截取当前帧。这样在应用不可见时，锁屏和桌面仍保持一致。";
 "ui.rotationInterval" = "轮播间隔";
@@ -81,9 +77,8 @@
 "menu.pause" = "暂停";
 "menu.resume" = "恢复";
 "menu.pauseAll" = "暂停播放";
-"menu.autoPause" = "省电模式";
-"menu.pauseWhenCovered" = "被遮挡时暂停";
-"menu.pauseUnderThermal" = "过热时暂停";
+"menu.batteryPause" = "电量暂停";
+"menu.visibilityPause" = "可见性暂停";
 "menu.nextWallpaper" = "下一张壁纸";
 "menu.stopWallpaper" = "清除壁纸";
 "menu.pauseScreen" = "分屏幕暂停";
@@ -115,6 +110,26 @@
 "about.formatsTitle" = "支持格式";
 "about.featuresTitle" = "功能特性";
 "about.features" = "视频和图片壁纸\n多显示器支持\n最近使用壁纸\n开机自启动";
+
+// Pause Policies
+"policy.battery.off" = "关闭";
+"policy.battery.lowBattery" = "电量低时";
+"policy.battery.onBattery" = "使用电池时";
+"policy.battery.followLowPowerMode" = "跟随低电量模式";
+"policy.visibility.off" = "关闭";
+"policy.visibility.covered" = "被遮挡时";
+"policy.visibility.unfocused" = "桌面未聚焦时";
+
+// Pause Reasons
+"reason.manualAll" = "已手动暂停";
+"reason.manualScreen" = "已手动暂停";
+"reason.lowBattery" = "电量低";
+"reason.asleep" = "已休眠";
+"reason.covered" = "被遮挡";
+"reason.desktopUnfocused" = "桌面未聚焦";
+
+// Pause Status
+"status.partiallyPaused" = "部分暂停";
 
 "ui.syncScreens" = "联动屏幕";
 "ui.syncScreens.tooltip" = "勾选后，此屏幕将与所有已联动屏幕共享壁纸、文件夹和轮播设置。";
