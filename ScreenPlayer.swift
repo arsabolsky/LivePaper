@@ -115,10 +115,8 @@ class ScreenPlayer {
     }
 
     private func setupVideoPlayer() {
-        let asset = AVURLAsset(url: fileURL)
-        let item = AVPlayerItem(asset: asset)
+        let item = AVPlayerItem(asset: AVURLAsset(url: fileURL))
         avPlayer = AVPlayer(playerItem: item)
-        applyFrameRateCapIfNeeded(asset: asset, item: item)
         avPlayer?.isMuted = true
         avPlayer?.volume = 0
         avPlayer?.automaticallyWaitsToMinimizeStalling = false
@@ -144,32 +142,6 @@ class ScreenPlayer {
 
         window?.orderBack(nil)
         avPlayer?.play()
-    }
-
-    /// For clips whose source frame rate exceeds the display (capped at 60),
-    /// attach a frame-rate-limiting video composition so AVFoundation stops
-    /// pushing frames the display will never show. Normal-rate clips get no
-    /// composition. Runs asynchronously to avoid blocking the main thread on
-    /// track property loading.
-    private func applyFrameRateCapIfNeeded(asset: AVURLAsset, item: AVPlayerItem) {
-        let screenMaxFPS = screen.maximumFramesPerSecond
-        asset.loadValuesAsynchronously(forKeys: ["tracks"]) { [weak self, weak item] in
-            guard let self, let item else { return }
-            var error: NSError?
-            guard asset.statusOfValue(forKey: "tracks", error: &error) == .loaded,
-                  let track = asset.tracks(withMediaType: .video).first else { return }
-            guard let target = PlaybackTuning.frameRateCapTarget(
-                    sourceFPS: track.nominalFrameRate, screenMaxFPS: screenMaxFPS) else { return }
-            let composition = AVMutableVideoComposition(propertiesOf: asset)
-            composition.frameDuration = CMTime(value: 1, timescale: CMTimeScale(target))
-            DispatchQueue.main.async { [weak self, weak item] in
-                guard let self, let item else { return }
-                // Only apply if this item is still the one playing (media may have
-                // been swapped by updateMedia in the meantime).
-                guard self.avPlayer?.currentItem === item else { return }
-                item.videoComposition = composition
-            }
-        }
     }
 
     private func setupImageView() {
