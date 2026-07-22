@@ -1,7 +1,7 @@
 # LivePaper
 
 A lightweight video and image wallpaper application for macOS.
-Current version: `v1.0.1`
+Current version: `v1.1.0`
 
 > LivePaper began as a fork of [SakuraWallpaper](https://github.com/yueseqaz/SakuraWallpaper) by sakura, and is evolving in its own direction. See [Acknowledgments](#acknowledgments).
 
@@ -14,7 +14,8 @@ Current version: `v1.0.1`
 - **Synchronized Linking**: Link screens together to mathematically guarantee their rotation timers switch wallpapers at the exact same millisecond
 - **Dual-Preview Mode**: Live playback of the current wallpaper directly within the settings window, alongside an interactive thumbnail grid for folder contents
 - **Mission Control Resilience**: Wallpapers seamlessly span across all virtual spaces and instantly recover during monitor reattachments
-- **Low Battery Auto Pause**: Automatically pauses wallpaper playback when battery level is at or below 20% and not charging
+- **Smart Auto-Pause**: Independent **Battery** and **Visibility** pause policies — pause on low battery (configurable threshold), whenever on battery power, or in Low Power Mode; and/or when a screen is covered or the desktop isn't focused. Evaluated per screen, and the menu tells you exactly why each screen is paused
+- **Lightweight & idle-efficient**: Event-driven window management keeps CPU wake-ups near zero while idle; playback pauses (or the static desktop shows through) whenever the wallpaper isn't visible
 - Multi-display support with robust monitor detection
 - Video wallpaper with automatic loop playback
 - Recent wallpapers history for quick switching (supports folders)
@@ -60,7 +61,7 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 1. **Drag** a wallpaper file/folder into the preview area, or **click the preview area** to choose in Finder
 2. Use the **Interval** stepper to set how often the wallpaper changes (in Rotation Mode)
 3. Enable **Shuffle** for randomized order
-4. Toggle **Battery Saver** to optimize energy usage while working in other apps or when the screen is off
+4. Set the **Battery Pause** and **Visibility Pause** policies to control automatic energy-saving pauses (see [Auto-Pause Options](#auto-pause-options))
 5. Use the screen dropdown to switch displays (prioritizes built-in displays first)
 6. Enable **Link Screens** to synchronize the current display's configuration and rotation timing with other linked screens
 7. Click **Stop Wallpaper** to clear the current screen's wallpaper
@@ -73,17 +74,22 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 - Video wallpapers snapshot the current playback frame when the wallpaper changes
 - Locking the screen or starting the screen saver triggers another sync using the current on-screen content
 
-### Battery Saver Behavior
+### Auto-Pause Options
 
-- When enabled, wallpapers auto-pause only if battery is `<=20%` and the Mac is not charging
-- This auto-pause is different from manual pause in the menu
+Two independent policies, set from the Settings window pop-ups or the status-bar submenus:
+
+- **Battery Pause** — *Off* / *When battery is low* (configurable threshold, default `20%`, while not charging) / *When on battery power* (any level, whenever unplugged) / *Follow Low Power Mode*.
+- **Visibility Pause** — *Off* / *When covered* (a screen's wallpaper pauses only while its desktop is **fully** covered by other windows) / *When desktop unfocused* (pauses whenever another app is frontmost, even if partly visible).
+
+Both are separate from manual pause. Sleep, screen lock, and the screen saver always pause playback. When a paused screen resumes, synced screens re-align to the same video frame.
 
 ### Status Bar Menu
 
 - **Open LivePaper** - Open main window
-- **Status: Live/Manually Paused/Low Battery Auto Paused/None** - Real-time informational readout
-- **Pause** - Submenu with `All Screens` and per-screen pause/resume actions
-- **Battery Saver** - Enable low-battery auto pause (<=20% and not charging)
+- **Status: Live / Paused (reason) / Partially Paused / None** - Real-time readout that names *why* playback is paused (Low battery, Covered, Desktop not focused, Asleep, or Paused by you)
+- **Pause** - Submenu with `All Screens` and per-screen pause/resume actions (each shows its current reason)
+- **Battery Pause** - Choose the battery auto-pause policy
+- **Visibility Pause** - Choose the covered / desktop-unfocused auto-pause policy
 - **Next Wallpaper** - Includes `All Screens` plus per-screen next actions (shortcut `n` applies to all screens)
 - **Clear Wallpaper** - Reset and remove current selection
 - **Recent** - Quick switch to previous wallpapers or folders
@@ -110,8 +116,11 @@ This removes the quarantine attribute that macOS applies to apps downloaded from
 LivePaper/
 ├── AppDelegate.swift          # App lifecycle and status bar
 ├── MainWindowController.swift # Main window UI
-├── WallpaperManager.swift     # Wallpaper playback engine
+├── WallpaperManager.swift     # Wallpaper playback engine + pause reconcile loop
 ├── ScreenPlayer.swift         # Individual screen player
+├── PausePolicy.swift          # Pause reasons + battery/visibility policy types
+├── PauseEvaluator.swift       # Pure per-screen pause-reason derivation
+├── PauseCoordinator.swift     # Applies playback-state transitions per screen
 ├── SettingsManager.swift      # User preferences storage
 ├── Localization.swift         # Localization helper
 ├── MediaType.swift            # File type detection
@@ -124,6 +133,7 @@ LivePaper/
 │   ├── en.lproj/              # English strings
 │   └── zh-Hans.lproj/         # Simplified Chinese strings
 ├── README.md                  # Documentation
+├── CHANGELOG.md               # Version history
 ├── LICENSE                    # MIT License
 └── .gitignore                 # Git ignore rules
 ```

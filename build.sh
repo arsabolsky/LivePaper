@@ -3,7 +3,7 @@
 APP_NAME="LivePaper"
 BUILD_DIR="build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
-APP_VERSION="1.0.1"
+APP_VERSION="1.1.0"
 
 # Deployment target — MUST be passed to swiftc via -target. Without it, swiftc
 # derives the Mach-O LC_BUILD_VERSION `minos` from the host toolchain, which on
