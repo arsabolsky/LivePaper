@@ -770,9 +770,11 @@ class WallpaperManager {
         let config = SettingsManager.shared.screenConfig(for: firstID)
         guard config.isRotationEnabled else { return }
         let interval = TimeInterval(max(1, config.rotationIntervalMinutes) * 60)
-        syncGroupTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.advanceSyncGroup()
         }
+        timer.tolerance = interval * 0.1
+        syncGroupTimer = timer
     }
 
     private func stopSyncGroupTimer() {
@@ -827,9 +829,11 @@ class WallpaperManager {
         let config = SettingsManager.shared.screenConfig(for: id)
         guard config.isRotationEnabled else { return }
         let interval = TimeInterval(max(1, config.rotationIntervalMinutes) * 60)
-        independentTimersByScreen[id] = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.nextWallpaper(forScreenID: id)
         }
+        timer.tolerance = interval * 0.1
+        independentTimersByScreen[id] = timer
     }
 
     private func stopIndependentTimer(forScreenID id: String) {
@@ -1027,9 +1031,11 @@ class WallpaperManager {
         let config = SettingsManager.shared.screenConfig(for: id)
         guard config.isRotationEnabled else { return }
         let interval = TimeInterval(max(1, config.rotationIntervalMinutes) * 60)
-        independentTimersByScreen[id] = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.nextWallpaper(forScreenID: id)
         }
+        timer.tolerance = interval * 0.1
+        independentTimersByScreen[id] = timer
     }
 
     private func urlForScreen(_ screen: NSScreen) -> URL? {
@@ -1115,9 +1121,14 @@ class WallpaperManager {
 
     private func startBatteryCheckTimer() {
         guard batteryCheckTimer == nil else { return }
-        batteryCheckTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+        // Battery LEVEL changes slowly; instantaneous events (Low Power Mode, AC
+        // connect/disconnect) already arrive via NSProcessInfoPowerStateDidChange,
+        // so a 2-minute level poll with wide tolerance is plenty responsive.
+        let timer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
             self?.reconcile()
         }
+        timer.tolerance = 15
+        batteryCheckTimer = timer
     }
 
     private func stopBatteryCheckTimer() {
