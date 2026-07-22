@@ -85,9 +85,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var selectFolderButton: NSButton!
     private var stopButton: NSButton!
     private var launchSwitch: NSButton!
-    private var pauseSwitch: NSButton!
-    private var pauseCoveredSwitch: NSButton!
-    private var thermalSwitch: NSButton!
+    private var batteryPolicyPopup: NSPopUpButton!
+    private var visibilityPolicyPopup: NSPopUpButton!
     private var syncDesktopSwitch: NSButton!
     private var rotationSwitch: NSButton!
     private var shuffleSwitch: NSButton!
@@ -453,43 +452,51 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createSettings() -> NSView {
         let settings = NSView(frame: NSRect(x: 20, y: 58, width: 460, height: 186))
 
+        let batteryLabel = NSTextField(labelWithString: "ui.batteryPause".localized + ":")
+        batteryLabel.font = NSFont.systemFont(ofSize: 12)
+        batteryLabel.frame = NSRect(x: 0, y: 156, width: 95, height: 20)
+        settings.addSubview(batteryLabel)
+
+        batteryPolicyPopup = NSPopUpButton(frame: NSRect(x: 98, y: 152, width: 170, height: 25), pullsDown: false)
+        batteryPolicyPopup.addItems(withTitles: [
+            "policy.battery.off".localized,
+            "policy.battery.lowBattery".localized,
+            "policy.battery.onBattery".localized,
+            "policy.battery.followLowPowerMode".localized,
+        ])
+        batteryPolicyPopup.target = self
+        batteryPolicyPopup.action = #selector(batteryPolicyChanged(_:))
+        settings.addSubview(batteryPolicyPopup)
+
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
                                 target: self, action: #selector(launchSwitchChanged))
         launchSwitch.font = NSFont.systemFont(ofSize: 12)
-        launchSwitch.frame = NSRect(x: 0, y: 156, width: 150, height: 20)
+        launchSwitch.frame = NSRect(x: 280, y: 156, width: 150, height: 20)
         launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
         settings.addSubview(launchSwitch)
 
-        pauseSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenInvisible".localized,
-                               target: self, action: #selector(pauseSwitchChanged))
-        pauseSwitch.font = NSFont.systemFont(ofSize: 12)
-        pauseSwitch.frame = NSRect(x: 160, y: 156, width: 130, height: 20)
-        pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
-        settings.addSubview(pauseSwitch)
+        let visibilityLabel = NSTextField(labelWithString: "ui.visibilityPause".localized + ":")
+        visibilityLabel.font = NSFont.systemFont(ofSize: 12)
+        visibilityLabel.frame = NSRect(x: 0, y: 128, width: 95, height: 20)
+        settings.addSubview(visibilityLabel)
 
-        thermalSwitch = NSButton(checkboxWithTitle: "ui.pauseUnderThermal".localized,
-                                 target: self, action: #selector(thermalSwitchChanged))
-        thermalSwitch.font = NSFont.systemFont(ofSize: 12)
-        thermalSwitch.frame = NSRect(x: 300, y: 156, width: 160, height: 20)
-        thermalSwitch.state = SettingsManager.shared.pauseUnderThermalPressure ? .on : .off
-        thermalSwitch.toolTip = "ui.pauseUnderThermal.tooltip".localized
-        settings.addSubview(thermalSwitch)
+        visibilityPolicyPopup = NSPopUpButton(frame: NSRect(x: 98, y: 124, width: 170, height: 25), pullsDown: false)
+        visibilityPolicyPopup.addItems(withTitles: [
+            "policy.visibility.off".localized,
+            "policy.visibility.covered".localized,
+            "policy.visibility.unfocused".localized,
+        ])
+        visibilityPolicyPopup.target = self
+        visibilityPolicyPopup.action = #selector(visibilityPolicyChanged(_:))
+        settings.addSubview(visibilityPolicyPopup)
 
         syncDesktopSwitch = NSButton(checkboxWithTitle: "ui.syncDesktopWallpaper".localized,
                                      target: self, action: #selector(syncDesktopSwitchChanged))
         syncDesktopSwitch.font = NSFont.systemFont(ofSize: 12)
-        syncDesktopSwitch.frame = NSRect(x: 0, y: 130, width: 220, height: 20)
+        syncDesktopSwitch.frame = NSRect(x: 275, y: 130, width: 180, height: 20)
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         syncDesktopSwitch.toolTip = "ui.syncDesktopWallpaper.tooltip".localized
         settings.addSubview(syncDesktopSwitch)
-
-        pauseCoveredSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenCovered".localized,
-                                      target: self, action: #selector(pauseCoveredSwitchChanged))
-        pauseCoveredSwitch.font = NSFont.systemFont(ofSize: 12)
-        pauseCoveredSwitch.frame = NSRect(x: 230, y: 130, width: 230, height: 20)
-        pauseCoveredSwitch.state = SettingsManager.shared.pauseWhenOccluded ? .on : .off
-        pauseCoveredSwitch.toolTip = "ui.pauseWhenCovered.tooltip".localized
-        settings.addSubview(pauseCoveredSwitch)
 
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
                                   target: self, action: #selector(rotationSwitchChanged))
@@ -728,19 +735,18 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         SettingsManager.shared.launchAtLogin = (sender.state == .on)
     }
 
-    @objc func pauseSwitchChanged(_ sender: NSButton) {
-        SettingsManager.shared.pauseWhenInvisible = (sender.state == .on)
-        wallpaperManager.checkPlaybackState()
+    @objc func batteryPolicyChanged(_ sender: NSPopUpButton) {
+        let all = BatteryPausePolicy.allCases
+        guard sender.indexOfSelectedItem >= 0, sender.indexOfSelectedItem < all.count else { return }
+        SettingsManager.shared.batteryPausePolicy = all[sender.indexOfSelectedItem]
+        wallpaperManager.onPausePolicyChanged()
     }
 
-    @objc func pauseCoveredSwitchChanged(_ sender: NSButton) {
-        SettingsManager.shared.pauseWhenOccluded = (sender.state == .on)
-        wallpaperManager.applyOcclusionPolicyChange()
-    }
-
-    @objc func thermalSwitchChanged(_ sender: NSButton) {
-        SettingsManager.shared.pauseUnderThermalPressure = (sender.state == .on)
-        wallpaperManager.checkPlaybackState()
+    @objc func visibilityPolicyChanged(_ sender: NSPopUpButton) {
+        let all = VisibilityPausePolicy.allCases
+        guard sender.indexOfSelectedItem >= 0, sender.indexOfSelectedItem < all.count else { return }
+        SettingsManager.shared.visibilityPausePolicy = all[sender.indexOfSelectedItem]
+        wallpaperManager.onPausePolicyChanged()
     }
 
     @objc func syncDesktopSwitchChanged(_ sender: NSButton) {
@@ -913,9 +919,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         let currentIncludeSubfolders = config.includeSubfolders
         let currentInterval = config.rotationIntervalMinutes
 
-        pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
-        pauseCoveredSwitch.state = SettingsManager.shared.pauseWhenOccluded ? .on : .off
-        thermalSwitch.state = SettingsManager.shared.pauseUnderThermalPressure ? .on : .off
+        batteryPolicyPopup.selectItem(at: BatteryPausePolicy.allCases.firstIndex(of: SettingsManager.shared.batteryPausePolicy) ?? 0)
+        visibilityPolicyPopup.selectItem(at: VisibilityPausePolicy.allCases.firstIndex(of: SettingsManager.shared.visibilityPausePolicy) ?? 0)
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         intervalField.integerValue = currentInterval
         intervalStepper.integerValue = currentInterval
@@ -970,7 +975,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 fileTypeLabel.stringValue = type == .video ? "ui.video".localized : "ui.image".localized
             }
 
-            let isAutoPaused = SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally && !isCurrentlyPaused
+            let isAutoPaused: Bool
+            switch wallpaperManager.statusSummary {
+            case .paused, .partiallyPaused:
+                isAutoPaused = !isCurrentlyPaused
+            case .playing, .stopped:
+                isAutoPaused = false
+            }
             if let indicator = statusIndicator as? NSBox {
                 if isCurrentlyPaused {
                     indicator.fillColor = .systemYellow
@@ -979,7 +990,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                     previewPlayer?.pause()
                 } else if isAutoPaused {
                     indicator.fillColor = .systemOrange
-                    statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
+                    statusLabel.stringValue = "ui.status".localized("ui.paused".localized)
                     statusLabel.textColor = .systemOrange
                     previewPlayer?.pause()
                 } else {
