@@ -104,12 +104,12 @@ final class UIFunctionalityPreservationTests: XCTestCase {
 
         // Test Case 4: Settings persistence
         settings.launchAtLogin = true
-        settings.pauseWhenInvisible = true
+        settings.batteryPausePolicy = .lowBattery
 
         XCTAssertTrue(settings.launchAtLogin,
             "Launch at login setting should be preserved")
-        XCTAssertTrue(settings.pauseWhenInvisible,
-            "Pause when invisible setting should be preserved")
+        XCTAssertEqual(settings.batteryPausePolicy, .lowBattery,
+            "Battery pause policy setting should be preserved")
 
         // Test per-screen config settings
         var settingsConfig = Screen_Config.default
@@ -398,13 +398,13 @@ final class UIFunctionalityPreservationTests: XCTestCase {
         XCTAssertFalse(settings.screenConfig(for: "screen_subfolders_off").includeSubfolders,
             "Include subfolders disabled should be preserved")
 
-        // Test pause when invisible setting
-        settings.pauseWhenInvisible = true
-        XCTAssertTrue(settings.pauseWhenInvisible,
-            "Pause when invisible enabled should be preserved")
-        settings.pauseWhenInvisible = false
-        XCTAssertFalse(settings.pauseWhenInvisible,
-            "Pause when invisible disabled should be preserved")
+        // Test battery pause policy setting
+        settings.batteryPausePolicy = .onBattery
+        XCTAssertEqual(settings.batteryPausePolicy, .onBattery,
+            "Battery pause policy enabled should be preserved")
+        settings.batteryPausePolicy = .off
+        XCTAssertEqual(settings.batteryPausePolicy, .off,
+            "Battery pause policy off should be preserved")
 
         // Test per-screen configuration independence via Screen_Config
         let screen1Id = "screen_1"
