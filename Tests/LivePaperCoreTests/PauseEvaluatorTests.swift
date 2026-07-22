@@ -13,14 +13,16 @@ final class PauseEvaluatorTests: XCTestCase {
         battery: BatteryPausePolicy = .off,
         visibility: VisibilityPausePolicy = .off,
         occluded: Set<String> = [],
-        desktopFrontmost: Bool = true
+        desktopFrontmost: Bool = true,
+        threshold: Int = 20
     ) -> PauseInputs {
         PauseInputs(
             screenIDs: screens, manualAll: manualAll, manualScreens: manualScreens,
             systemAsleep: asleep,
             power: PowerState(batteryLevel: level, isCharging: charging, lowPowerModeEnabled: lowPower),
             batteryPolicy: battery, visibilityPolicy: visibility,
-            occludedScreens: occluded, desktopFrontmost: desktopFrontmost)
+            occludedScreens: occluded, desktopFrontmost: desktopFrontmost,
+            lowBatteryThreshold: threshold)
     }
 
     func testNoReasonsWhenEverythingNominal() {
@@ -41,6 +43,24 @@ final class PauseEvaluatorTests: XCTestCase {
         XCTAssertFalse(PauseEvaluator.batteryConditionMet(.lowBattery, PowerState(batteryLevel: 15, isCharging: true, lowPowerModeEnabled: false)))
         XCTAssertTrue(PauseEvaluator.batteryConditionMet(.lowBattery, PowerState(batteryLevel: 15, isCharging: false, lowPowerModeEnabled: false)))
         XCTAssertFalse(PauseEvaluator.batteryConditionMet(.lowBattery, PowerState(batteryLevel: 40, isCharging: false, lowPowerModeEnabled: false)))
+    }
+
+    func testBatteryLowBatteryCustomThreshold() {
+        let power = PowerState(batteryLevel: 80, isCharging: false, lowPowerModeEnabled: false)
+        // Default threshold (20): 80% does not trigger.
+        XCTAssertFalse(PauseEvaluator.batteryConditionMet(.lowBattery, power))
+        // Raised threshold (90): 80% now triggers.
+        XCTAssertTrue(PauseEvaluator.batteryConditionMet(.lowBattery, power, threshold: 90))
+        // Boundary: exactly at threshold triggers; charging never triggers.
+        XCTAssertTrue(PauseEvaluator.batteryConditionMet(.lowBattery, power, threshold: 80))
+        XCTAssertFalse(PauseEvaluator.batteryConditionMet(.lowBattery, PowerState(batteryLevel: 80, isCharging: true, lowPowerModeEnabled: false), threshold: 90))
+    }
+
+    func testCustomThresholdFlowsThroughReasons() {
+        let i = inputs(level: 50, charging: false, battery: .lowBattery, threshold: 60)
+        XCTAssertEqual(PauseEvaluator.reasons(for: "A", i), [.lowBattery])
+        let i2 = inputs(level: 50, charging: false, battery: .lowBattery, threshold: 40)
+        XCTAssertTrue(PauseEvaluator.reasons(for: "A", i2).isEmpty)
     }
 
     func testBatteryOnBatteryPolicy() {
