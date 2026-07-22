@@ -3,25 +3,25 @@ import AVFoundation
 import IOKit.ps
 
 class WallpaperManager {
-    enum PlaybackStatus {
-        case stopped
-        case playing
-        case pausedManual
-        case pausedAuto
-    }
-
     private var players: [String: ScreenPlayer] = [:]
     var currentFiles: [String: URL] = [:]
     var isActive: Bool { !players.isEmpty }
-    var isPaused: Bool = false
+
+    // Raw pause INPUTS (never derived flags). Playback state is always
+    // recomputed from these via reconcile().
+    private var manualAllPaused = false
+    private var manualPausedScreens: Set<String> = []
+    private var occludedScreens: Set<String> = []
+    private var systemAsleep = false
+
+    private let coordinator = PauseCoordinator()
+
     private var keepVisibleTimer: Timer?
     private var batteryCheckTimer: Timer?
     private let keepVisibleInterval: TimeInterval = 0.75
-    private let lowBatteryPauseThreshold = 20
-    private var pausedScreens: Set<String> = []
-    /// Screens whose wallpaper window is currently fully covered by other windows.
-    /// Tracked continuously; only acted upon when `pauseWhenOccluded` is enabled.
-    private var occludedScreens: Set<String> = []
+
+    /// Global manual-pause state (kept for callers/UI).
+    var isPaused: Bool { manualAllPaused }
 
     private var playlistsByScreen: [String: [URL]] = [:]
     private var playlistIndexesByScreen: [String: Int] = [:]
@@ -40,19 +40,6 @@ class WallpaperManager {
     static let playbackStateDidChangeNotification = Notification.Name("WallpaperManagerPlaybackStateDidChange")
     static let screenListDidChangeNotification = Notification.Name("WallpaperManagerScreenListDidChange")
 
-    var playbackStatus: PlaybackStatus {
-        if !isActive {
-            return .stopped
-        }
-        if isPaused {
-            return .pausedManual
-        }
-        if SettingsManager.shared.pauseWhenInvisible && isPausedInternally {
-            return .pausedAuto
-        }
-        return .playing
-    }
-
     init() {
         NotificationCenter.default.addObserver(
             self,
@@ -62,43 +49,43 @@ class WallpaperManager {
         )
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(appBecameActive),
+            selector: #selector(reconcileFromNotification),
             name: NSApplication.didBecomeActiveNotification,
             object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
+            selector: #selector(reconcileFromNotification),
             name: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
+            selector: #selector(reconcileFromNotification),
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(handleSleep),
+            selector: #selector(handleSleepNotification),
             name: NSWorkspace.willSleepNotification,
             object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(handleSleep),
+            selector: #selector(handleSleepNotification),
             name: NSWorkspace.screensDidSleepNotification,
             object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
+            selector: #selector(handleWakeNotification),
             name: NSWorkspace.didWakeNotification,
             object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
+            selector: #selector(handleWakeNotification),
             name: NSWorkspace.screensDidWakeNotification,
             object: nil
         )
@@ -114,10 +101,16 @@ class WallpaperManager {
             name: Notification.Name("com.apple.screensaver.didstart"),
             object: nil
         )
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(handleWakeNotification),
+            name: Notification.Name("com.apple.screenIsUnlocked"), object: nil)
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(handleWakeNotification),
+            name: Notification.Name("com.apple.screensaver.didstop"), object: nil)
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
-            name: ProcessInfo.thermalStateDidChangeNotification,
+            selector: #selector(reconcileFromNotification),
+            name: NSNotification.Name.NSProcessInfoPowerStateDidChange,
             object: nil
         )
         startBatteryCheckTimer()
@@ -134,37 +127,17 @@ class WallpaperManager {
     }
 
 
-    @objc private func handleSleep() {
-        if !isPausedInternally {
-            isPausedInternally = true
-            pauseAll()
-            NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-        }
+    @objc private func reconcileFromNotification() { reconcile() }
+
+    @objc private func handleSleepNotification() {
+        systemAsleep = true
+        reconcile()
     }
 
-    @objc func checkPlaybackState() {
-        // Battery Saver and Thermal protection are independent opt-in features.
-        // Either one, when enabled and triggered, pauses all playback internally.
-        let batterySaverPause = SettingsManager.shared.pauseWhenInvisible && shouldPauseForLowBattery()
-        let thermalPause = SettingsManager.shared.pauseUnderThermalPressure && shouldPauseForThermal()
-
-        if batterySaverPause || thermalPause {
-            if !isPausedInternally {
-                isPausedInternally = true
-                pauseAll()
-                NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-            }
-            return
-        }
-
-        if isPausedInternally {
-            isPausedInternally = false
-            if !isPaused { resumeAll() }
-            NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-        }
+    @objc private func handleWakeNotification() {
+        systemAsleep = false
+        reconcile()
     }
-
-    public private(set) var isPausedInternally: Bool = false
 
     func startRotationTimer() {
         stopSyncGroupTimer()
@@ -314,14 +287,11 @@ class WallpaperManager {
                 currentFiles[id] = firstURL
                 createOrUpdatePlayer(for: screen, url: firstURL)
                 syncCurrentWallpaperToSystemDesktop(for: screen)
-                if isPaused || isPausedInternally {
-                    players[id]?.pausePlayback()
-                    players[id]?.window?.orderOut(nil)
-                }
             } else {
                 stopWallpaper(for: screen)
             }
 
+            reconcile()
             startKeepVisibleTimer()
             // Start appropriate timer
             if updatedConfig.isSynced {
@@ -337,7 +307,11 @@ class WallpaperManager {
     }
 
     @objc private func handleScreenLocked(_ notification: Notification) {
+        // Lock / screensaver start counts as "asleep": freeze playback. Also sync
+        // the current frame to the system desktop so the lock screen reflects it.
+        systemAsleep = true
         syncCurrentWallpaperToSystemDesktop()
+        reconcile()
     }
 
     private func syncCurrentWallpaperToSystemDesktop() {
@@ -508,7 +482,7 @@ class WallpaperManager {
             playlistsByScreen.removeValue(forKey: removedId)
             playlistIndexesByScreen.removeValue(forKey: removedId)
             stopIndependentTimer(forScreenID: removedId)
-            pausedScreens.remove(removedId)
+            manualPausedScreens.remove(removedId)
             occludedScreens.remove(removedId)
             clearTransientDesktopSnapshot(for: removedId)
             // If this was the last synced screen, stop sync group timer
@@ -555,11 +529,8 @@ class WallpaperManager {
             // else: leave stopped
         }
 
-        if isPaused {
-            pauseAll()
-        } else {
-            showAll()
-        }
+        reconcile()
+        showAll()
 
         // Step 5: Resize existing players whose frame changed
         for screen in NSScreen.screens {
@@ -608,70 +579,81 @@ class WallpaperManager {
         return config
     }
 
-    @objc private func appBecameActive() {
-        if !isPaused {
-            resumeAll()
-        }
-        showAll()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            if self?.isPaused == false {
-                self?.resumeAll()
-            }
-            self?.showAll()
-        }
-    }
+    // MARK: - Public pause API (mutate inputs, then reconcile)
 
-    func pause() {
-        guard isActive else { return }
-        isPaused = true
-        pauseAll()
-        stopKeepVisibleTimer()
-        players.values.forEach { $0.window?.orderOut(nil) }
-        NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-    }
-
-    func resume() {
-        guard isActive else { return }
-        isPaused = false
-        if !isPausedInternally {
-            resumeAll()
-            showAll()
-        }
-        startKeepVisibleTimer()
-        NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-    }
+    func pause()  { manualAllPaused = true;  reconcile() }
+    func resume() { manualAllPaused = false; reconcile() }
 
     func pauseScreen(_ screen: NSScreen) {
-        let id = SettingsManager.screenIdentifier(screen)
-        pausedScreens.insert(id)
-        players[id]?.pausePlayback()
-        players[id]?.window?.orderOut(nil)
+        manualPausedScreens.insert(SettingsManager.screenIdentifier(screen)); reconcile()
     }
-
     func resumeScreen(_ screen: NSScreen) {
-        let id = SettingsManager.screenIdentifier(screen)
-        pausedScreens.remove(id)
-        resumePlayerAligned(id)
-        players[id]?.window?.orderBack(nil)
-        players[id]?.window?.orderFrontRegardless()
+        manualPausedScreens.remove(SettingsManager.screenIdentifier(screen)); reconcile()
     }
-
     func isScreenPaused(_ screen: NSScreen) -> Bool {
-        let id = SettingsManager.screenIdentifier(screen)
-        return pausedScreens.contains(id)
+        manualPausedScreens.contains(SettingsManager.screenIdentifier(screen))
     }
 
-    // MARK: - Pause-when-occluded
+    /// Called by the UI when a pause policy setting changes.
+    func onPausePolicyChanged() { reconcile() }
 
-    /// Single source of truth for whether a given screen's playback should be
-    /// paused right now, combining every pause condition: global manual pause,
-    /// internal (battery/sleep) pause, per-screen manual pause, and — when the
-    /// feature is enabled — the screen being covered by other windows.
-    private func shouldPauseScreen(_ id: String) -> Bool {
-        if isPaused || isPausedInternally { return true }
-        if pausedScreens.contains(id) { return true }
-        if SettingsManager.shared.pauseWhenOccluded && occludedScreens.contains(id) { return true }
-        return false
+    // MARK: - Reconcile (single application path)
+
+    private func currentPowerState() -> PowerState {
+        let snap = currentBatterySnapshot()
+        return PowerState(
+            batteryLevel: snap?.level,
+            isCharging: snap?.isCharging ?? true,
+            lowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled)
+    }
+
+    private func desktopIsFrontmost() -> Bool {
+        let bundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        guard let bundle else { return true } // desktop click / unknown → treat as desktop
+        let selfBundle = Bundle.main.bundleIdentifier
+        return bundle == "com.apple.finder" || bundle == "com.apple.dock" || bundle == selfBundle
+    }
+
+    private func currentPauseInputs() -> PauseInputs {
+        PauseInputs(
+            screenIDs: Array(players.keys),
+            manualAll: manualAllPaused,
+            manualScreens: manualPausedScreens,
+            systemAsleep: systemAsleep,
+            power: currentPowerState(),
+            batteryPolicy: SettingsManager.shared.batteryPausePolicy,
+            visibilityPolicy: SettingsManager.shared.visibilityPausePolicy,
+            occludedScreens: occludedScreens,
+            desktopFrontmost: desktopIsFrontmost())
+    }
+
+    func reconcile() {
+        guard isActive else { coordinator.reset(); return }
+        let reasonsByScreen = PauseEvaluator.reasonsByScreen(currentPauseInputs())
+        let changed = coordinator.reconcile(reasonsByScreen: reasonsByScreen, control: self)
+        if changed {
+            NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
+        }
+    }
+
+    /// A player whose media was just swapped (`updateMedia`) auto-starts playback,
+    /// bypassing the coordinator. Re-assert the coordinator's current desired state
+    /// so a screen that should stay frozen/hidden does not silently resume after a
+    /// rotation. `reconcile()` alone cannot fix this: the desired state is unchanged,
+    /// and the coordinator drives transitions only.
+    private func reassertPlaybackState(for id: String) {
+        guard let state = coordinator.applied[id], state != .playing else { return }
+        apply(state, to: id)
+    }
+
+    // MARK: - Status (for UI)
+
+    var statusSummary: PlaybackSummary {
+        PauseEvaluator.summarize(PauseEvaluator.reasonsByScreen(currentPauseInputs()), isActive: isActive)
+    }
+
+    func reasons(for screen: NSScreen) -> Set<PauseReason> {
+        PauseEvaluator.reasons(for: SettingsManager.screenIdentifier(screen), currentPauseInputs())
     }
 
     // MARK: - Video sync alignment
@@ -682,10 +664,11 @@ class WallpaperManager {
     /// Returns nil when there is no other active synced video to align to.
     private func syncGroupLeaderTime(excluding excludedID: String? = nil) -> CMTime? {
         var leader: CMTime?
+        let inputs = currentPauseInputs()
         for (id, player) in players {
             if id == excludedID { continue }
             guard SettingsManager.shared.screenConfig(for: id).isSynced else { continue }
-            guard !shouldPauseScreen(id) else { continue }
+            guard PauseEvaluator.reasons(for: id, inputs).isEmpty else { continue }
             guard let t = player.currentPlaybackTime() else { continue }
             if let current = leader {
                 if t.seconds > current.seconds { leader = t }
@@ -706,39 +689,6 @@ class WallpaperManager {
         } else {
             player.resumePlayback()
         }
-    }
-
-    /// Called by a ScreenPlayer when its window's visibility changes.
-    private func handleVisibilityChange(screenID id: String, visible: Bool) {
-        let wasOccluded = occludedScreens.contains(id)
-        if visible {
-            occludedScreens.remove(id)
-        } else {
-            occludedScreens.insert(id)
-        }
-        guard wasOccluded != !visible else { return }
-        guard SettingsManager.shared.pauseWhenOccluded, let player = players[id] else { return }
-
-        if shouldPauseScreen(id) {
-            player.pausePlayback()
-        } else {
-            resumePlayerAligned(id)
-        }
-        NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-    }
-
-    /// Re-evaluates every screen against the current pause-when-occluded setting.
-    /// Called when the user toggles the option so playback catches up immediately.
-    func applyOcclusionPolicyChange() {
-        guard isActive else { return }
-        for (id, player) in players {
-            if shouldPauseScreen(id) {
-                player.pausePlayback()
-            } else {
-                resumePlayerAligned(id)
-            }
-        }
-        NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
     }
 
     // MARK: - Sync group management (Task 6.3)
@@ -847,14 +797,13 @@ class WallpaperManager {
             currentFiles[sid] = nextURL
             if let player = players[sid] {
                 player.updateMedia(url: nextURL)
-                if shouldPauseScreen(sid) {
-                    player.pausePlayback()
-                }
             }
             if let screen = screen(forScreenID: sid) {
                 syncCurrentWallpaperToSystemDesktop(for: screen)
             }
         }
+        reconcile()
+        for sid in syncedScreenIDs { reassertPlaybackState(for: sid) }
         NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
     }
 
@@ -888,6 +837,7 @@ class WallpaperManager {
         SettingsManager.shared.addToHistory(url.path)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.createAllPlayers(for: screens)
+            self?.reconcile()
             self?.startKeepVisibleTimer()
         }
     }
@@ -931,26 +881,18 @@ class WallpaperManager {
             guard let self else { return }
             self.createOrUpdatePlayer(for: screen, url: url)
             self.syncCurrentWallpaperToSystemDesktop(for: screen)
-            if self.isPaused || self.pausedScreens.contains(id) {
-                self.players[id]?.pausePlayback()
-                self.players[id]?.window?.orderOut(nil)
-            }
-            
+
             if config.isSynced {
                 let syncedScreens = NSScreen.screens.filter {
                     let sid = SettingsManager.screenIdentifier($0)
                     return sid != id && SettingsManager.shared.screenConfig(for: sid).isSynced
                 }
                 for syncedScreen in syncedScreens {
-                    let sid = SettingsManager.screenIdentifier(syncedScreen)
                     self.createOrUpdatePlayer(for: syncedScreen, url: url)
                     self.syncCurrentWallpaperToSystemDesktop(for: syncedScreen)
-                    if self.isPaused || self.pausedScreens.contains(sid) {
-                        self.players[sid]?.pausePlayback()
-                        self.players[sid]?.window?.orderOut(nil)
-                    }
                 }
             }
+            self.reconcile()
             self.startKeepVisibleTimer()
         }
     }
@@ -961,8 +903,9 @@ class WallpaperManager {
     }
 
     func stopAll() {
-        isPaused = false
-        isPausedInternally = false
+        manualAllPaused = false
+        systemAsleep = false
+        coordinator.reset()
         stopKeepVisibleTimer()
         stopSyncGroupTimer()
         for (_, timer) in independentTimersByScreen { timer.invalidate() }
@@ -970,7 +913,7 @@ class WallpaperManager {
         players.values.forEach { $0.cleanup() }
         players.removeAll()
         currentFiles.removeAll()
-        pausedScreens.removeAll()
+        manualPausedScreens.removeAll()
         occludedScreens.removeAll()
         playlistsByScreen.removeAll()
         playlistIndexesByScreen.removeAll()
@@ -988,7 +931,7 @@ class WallpaperManager {
         players[id]?.cleanup()
         players.removeValue(forKey: id)
         currentFiles.removeValue(forKey: id)
-        pausedScreens.remove(id)
+        manualPausedScreens.remove(id)
         occludedScreens.remove(id)
         playlistsByScreen.removeValue(forKey: id)
         playlistIndexesByScreen.removeValue(forKey: id)
@@ -1019,13 +962,12 @@ class WallpaperManager {
         currentFiles[id] = nextURL
         if let player = players[id] {
             player.updateMedia(url: nextURL)
-            if shouldPauseScreen(id) {
-                player.pausePlayback()
-            }
         }
         if let screen = screen(forScreenID: id) {
             syncCurrentWallpaperToSystemDesktop(for: screen)
         }
+        reconcile()
+        reassertPlaybackState(for: id)
         NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
     }
 
@@ -1047,13 +989,12 @@ class WallpaperManager {
         currentFiles[id] = nextURL
         if let player = players[id] {
             player.updateMedia(url: nextURL)
-            if shouldPauseScreen(id) {
-                player.pausePlayback()
-            }
         }
         if let screen = screen(forScreenID: id) {
             syncCurrentWallpaperToSystemDesktop(for: screen)
         }
+        reconcile()
+        reassertPlaybackState(for: id)
         PerformanceMonitor.shared.end(token, extra: "screen=\(id) file=\(nextURL.lastPathComponent)")
         NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
     }
@@ -1115,33 +1056,28 @@ class WallpaperManager {
                 player.resize(to: screen)
             }
             player.updateMedia(url: url)
+            // updateMedia re-orders the window back and auto-starts playback; keep
+            // the screen paused/hidden if the coordinator says it should be.
+            reassertPlaybackState(for: id)
         } else {
             let player = ScreenPlayer(fileURL: url, screen: screen)
             player.onVisibilityChange = { [weak self] visible in
-                self?.handleVisibilityChange(screenID: id, visible: visible)
+                guard let self else { return }
+                // Ignore occlusion reports for screens we've hidden ourselves
+                // (an ordered-out window reports "not visible" — that's us).
+                if self.manualAllPaused || self.manualPausedScreens.contains(id) { return }
+                if visible { self.occludedScreens.remove(id) } else { self.occludedScreens.insert(id) }
+                self.reconcile()
             }
             players[id] = player
-            // Seed the initial visibility state; the window may already be
-            // covered when the player is created (e.g. app launched behind a
-            // full-screen window). We read the window's occlusion state
-            // directly rather than assuming visible, so playback starts paused
-            // if the desktop is already hidden.
-            if player.isVisibleOnScreen {
-                occludedScreens.remove(id)
-            } else {
-                occludedScreens.insert(id)
-            }
-            // A freshly created ScreenPlayer starts playing on setup, so honor
-            // every pause condition (occlusion, manual, battery/thermal) now.
-            if shouldPauseScreen(id) {
-                player.pausePlayback()
-            }
+            // A freshly created ScreenPlayer starts playing on setup; the reconcile()
+            // that follows creation (in the caller) will pause/hide it per its reasons.
         }
     }
 
     private func showAll() {
         players.forEach { id, player in
-            guard !pausedScreens.contains(id) else { return }
+            if coordinator.applied[id] == .hidden { return }
             player.window?.orderBack(nil)
         }
     }
@@ -1161,31 +1097,13 @@ class WallpaperManager {
     private func startBatteryCheckTimer() {
         guard batteryCheckTimer == nil else { return }
         batteryCheckTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            self?.checkPlaybackState()
+            self?.reconcile()
         }
     }
 
     private func stopBatteryCheckTimer() {
         batteryCheckTimer?.invalidate()
         batteryCheckTimer = nil
-    }
-
-    private func shouldPauseForLowBattery() -> Bool {
-        guard let battery = currentBatterySnapshot() else { return false }
-        return !battery.isCharging && battery.level <= lowBatteryPauseThreshold
-    }
-
-    /// Pauses playback under thermal pressure. At `.serious` the system already
-    /// has fans at max and is throttling the CPU/GPU; a video wallpaper is pure
-    /// discretionary load at that point, so we stop it to help the machine cool
-    /// down. Recovers automatically once the state drops back to `.fair`/`.nominal`.
-    private func shouldPauseForThermal() -> Bool {
-        switch ProcessInfo.processInfo.thermalState {
-        case .serious, .critical:
-            return true
-        default:
-            return false
-        }
     }
 
     private func currentBatterySnapshot() -> (level: Int, isCharging: Bool)? {
@@ -1210,17 +1128,6 @@ class WallpaperManager {
         return (level: percentage, isCharging: isCharging)
     }
 
-    private func resumeAll() {
-        players.forEach { id, _ in
-            guard !shouldPauseScreen(id) else { return }
-            resumePlayerAligned(id)
-        }
-    }
-
-    private func pauseAll() {
-        players.values.forEach { $0.pausePlayback() }
-    }
-
     // MARK: - Restore all screens (Task 6.7)
 
     func restoreAllScreens() {
@@ -1238,6 +1145,24 @@ class WallpaperManager {
                 setWallpaper(url: wallpaperURL, for: screen)
             }
             // else: leave stopped
+        }
+    }
+}
+
+extension WallpaperManager: ScreenPlaybackControl {
+    func apply(_ state: ScreenPlaybackState, to screenID: String) {
+        guard let player = players[screenID] else { return }
+        switch state {
+        case .playing:
+            player.window?.orderBack(nil)
+            player.window?.orderFrontRegardless()
+            resumePlayerAligned(screenID) // preserves sync-on-resume
+        case .frozen:
+            player.window?.orderBack(nil)
+            player.pausePlayback()
+        case .hidden:
+            player.pausePlayback()
+            player.window?.orderOut(nil)
         }
     }
 }

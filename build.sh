@@ -31,6 +31,9 @@ swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
     PerformanceMonitor.swift \
     ScreenPlayer.swift \
     WallpaperManager.swift \
+    PausePolicy.swift \
+    PauseEvaluator.swift \
+    PauseCoordinator.swift \
     MainWindowController.swift \
     ThumbnailItem.swift \
     ThumbnailProvider.swift \
