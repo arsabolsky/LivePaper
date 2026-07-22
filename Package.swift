@@ -41,8 +41,7 @@ let package = Package(
                 "PlaylistBuilder.swift",
                 "PausePolicy.swift",
                 "PauseEvaluator.swift",
-                "PauseCoordinator.swift",
-                "PlaybackTuning.swift"
+                "PauseCoordinator.swift"
             ],
             linkerSettings: [
                 .linkedFramework("Cocoa"),
