@@ -38,7 +38,10 @@ let package = Package(
                 "Screen_Config.swift",
                 "SettingsManager.swift",
                 "MediaType.swift",
-                "PlaylistBuilder.swift"
+                "PlaylistBuilder.swift",
+                "PausePolicy.swift",
+                "PauseEvaluator.swift",
+                "PauseCoordinator.swift"
             ],
             linkerSettings: [
                 .linkedFramework("Cocoa"),
